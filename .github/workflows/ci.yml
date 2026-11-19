@@ -42,6 +42,8 @@ jobs:
       - run: ruff check .
       - run: python manage.py check
       - run: python manage.py makemigrations --check --dry-run
+      - name: Collect static files
+        run: python manage.py collectstatic --noinput
       - run: pytest -q --cov=workspace.services --cov=workspace.queries --cov-report=term-missing --cov-fail-under=70
       - name: Package source artifact
         uses: actions/upload-artifact@v4
