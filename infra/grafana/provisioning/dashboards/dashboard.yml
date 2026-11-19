@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+  - name: OfficeFlow
+    orgId: 1
+    folder: "OfficeFlow"
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 15
+    options:
+      path: /var/lib/grafana/dashboards

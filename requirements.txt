@@ -1,0 +1,9 @@
+Django>=5.2,<5.3
+djangorestframework>=3.16,<3.17
+drf-spectacular>=0.28,<0.29
+psycopg[binary]>=3.2,<3.4
+redis>=5,<7
+django-redis>=5.4,<7
+django-prometheus>=2.4,<3
+gunicorn>=23,<24
+whitenoise>=6.9,<7

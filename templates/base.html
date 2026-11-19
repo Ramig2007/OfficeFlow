@@ -1,0 +1,44 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>{% block title %}OfficeFlow{% endblock %} · OfficeFlow</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <script src="{% static 'js/app.js' %}" defer></script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="{% url 'dashboard' %}" aria-label="OfficeFlow — главная"><span class="brand-logo"><span></span><span></span><span></span><span></span></span><span>office<span class="brand-blue">flow</span><small>WORKSPACE</small></span></a>
+    <div class="nav-caption">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+    <nav class="nav" aria-label="Основная навигация">
+      <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}is-current{% endif %}" href="{% url 'dashboard' %}"><span class="nav-symbol">◫</span> Панель управления</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'schedule' %}is-current{% endif %}" href="{% url 'schedule' %}"><span class="nav-symbol">▦</span> Расписание</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'rooms' or request.resolver_match.url_name == 'room-detail' %}is-current{% endif %}" href="{% url 'rooms' %}"><span class="nav-symbol">▤</span> Переговорные</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'my-bookings' %}is-current{% endif %}" href="{% url 'my-bookings' %}"><span class="nav-symbol">◷</span> Мои бронирования</a>
+    </nav>
+    {% if can_manage %}
+    <div class="nav-caption nav-extra">АДМИНИСТРИРОВАНИЕ</div>
+    <nav class="nav" aria-label="Администрирование">
+      <a class="nav-link {% if request.resolver_match.url_name == 'approvals' %}is-current{% endif %}" href="{% url 'approvals' %}"><span class="nav-symbol">◇</span> VIP-заявки</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'manage-rooms' or request.resolver_match.url_name == 'manage-room-edit' or request.resolver_match.url_name == 'manage-room-new' %}is-current{% endif %}" href="{% url 'manage-rooms' %}"><span class="nav-symbol">▧</span> Управление комнатами</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'manage-users' %}is-current{% endif %}" href="{% url 'manage-users' %}"><span class="nav-symbol">♙</span> Пользователи</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'reports' %}is-current{% endif %}" href="{% url 'reports' %}"><span class="nav-symbol">▥</span> Отчёты</a>
+    </nav>
+    {% endif %}
+    <div class="sidebar-bottom"><div class="help-panel"><span class="help-panel-icon">✦</span><b>Нужна переговорная?</b><p>Выберите свободное время прямо в расписании.</p><a href="{% url 'schedule' %}">Открыть календарь <span>→</span></a></div></div>
+  </aside>
+  <div class="main-column">
+    <header class="topbar"><button type="button" class="mobile-menu icon-button" data-menu aria-label="Открыть меню">☰</button><div class="topbar-caption"><span class="online-dot"></span> Пространство для ваших встреч</div><div class="topbar-actions"><span class="topbar-date">{% now 'd E Y' %}</span><a class="user-chip" href="{% url 'profile' %}"><span class="avatar">{{ request.user.first_name|default:request.user.username|first|upper }}</span><span class="user-name">{{ request.user.get_full_name|default:request.user.username }}</span></a><form method="post" action="{% url 'logout' %}" class="logout-form">{% csrf_token %}<button class="icon-button" type="submit" aria-label="Выйти" title="Выйти">↗</button></form></div></header>
+    <main class="content">
+      {% if messages %}<div class="flash-stack" role="status">{% for message in messages %}<div class="flash {% if message.tags %}flash-{{ message.tags }}{% endif %}">{{ message }}</div>{% endfor %}</div>{% endif %}
+      {% block content %}{% endblock %}
+      <footer class="footer">OfficeFlow · Простое пространство для больших идей <span>Время отображается по часовому поясу сервиса</span></footer>
+    </main>
+  </div>
+</div>
+</body>
+</html>

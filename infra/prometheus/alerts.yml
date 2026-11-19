@@ -1,0 +1,31 @@
+groups:
+  - name: officeflow
+    rules:
+      - alert: OfficeFlowServiceDown
+        expr: up{job="officeflow"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "OfficeFlow не отвечает на метрики"
+      - alert: OfficeFlowErrorRateHigh
+        expr: (sum(rate(django_http_responses_total_by_status_total{status=~"5.."}[5m])) / clamp_min(sum(rate(django_http_responses_total_by_status_total[5m])), 0.01)) > 0.001
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Доля 5xx выше 0,1% за 5 минут"
+      - alert: OfficeFlowLatencyP95High
+        expr: histogram_quantile(0.95, sum by (le) (rate(django_http_requests_latency_including_middlewares_seconds_bucket[5m]))) > 0.2
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "p95 HTTP latency превышает 200 мс"
+      - alert: OfficeFlowDatabaseDown
+        expr: up{job="postgres"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "PostgreSQL exporter недоступен"}
+      - alert: OfficeFlowRedisDown
+        expr: up{job="redis"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "Redis exporter недоступен"}
