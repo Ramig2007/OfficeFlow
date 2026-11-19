@@ -1,34 +1,47 @@
-# Сводка фактической готовности — 19.11.2026
+# Сводка фактической готовности OfficeFlow — 19.11.2026
 
-## Что реально подготовлено
+## Подтверждённые результаты
 
-- Django project, app, models and 2 committed migration files, HTML/REST interfaces, Redis session configuration.
-- Booking service with PostgreSQL exclusion constraint, VIP workflow, CRUD rooms, role changes, reports + CSV.
-- Light CSS interface with responsive sidebar, weekly and hourly scheduling, 15 template files.
-- Docker Compose with PostgreSQL, Redis, Nginx, opt-in observability profile and sample PowerShell backup/restore.
-- Test source files for unit/integration/race/API/permission/CSV plus browser E2E and k6 example.
-- Requirements matrix mapped to 8 sections of the teacher's assignment and detailed operational documentation.
+Сведения ниже основаны на фактических результатах локальных команд, журнала GitHub Actions и скриншота GHCR. Они описывают проверенные сценарии, а не гарантию эксплуатации в любых условиях.
 
-## Проверки, действительно выполненные здесь
+| Область | Факт | Статус |
+|---|---|---|
+| Контейнерный стек | Django, PostgreSQL, Redis и Nginx работали локально, `app` был healthy | Проверено |
+| Функциональные тесты | 60/60 прошли локально | Проверено |
+| Покрытие критического кода | В CI `services` + `queries`: 91,67% при пороге 70% | Проверено |
+| Браузерное тестирование | Chromium/Playwright: 9/9; проверены вход, основные страницы, права и мобильный каталог | Проверено |
+| Нагрузочное тестирование | k6, 200 заданных RPS, 30 с; 6001 итерация, ~199,2 HTTP RPS, p95=13,19 мс, 0% HTTP-ошибок, без пропусков | Проверено для авторизованного чтения |
+| Конфигурация Gunicorn | 4 workers, 4 threads на worker; устранена деградация, наблюдавшаяся с 1 worker | Проверено локально |
+| Backup/restore | pg_dump и восстановление во временную БД; 2 пользователя, 5 комнат, 7 броней, 12 событий аудита, 20 миграций в обоих снимках; `RESTORE_TEST_OK` | Проверено |
+| Мониторинг | Метрики Django, PostgreSQL, Redis: все `UP` | Проверено |
+| Правила Prometheus | 5 правил без ошибок; `promtool test rules` завершился `SUCCESS` | Проверено |
+| Alertmanager | Тестовое сообщение `OfficeFlowRoutingSmokeTest` принято, `active`, получатель `null-receiver` | Маршрутизация проверена |
+| GitHub CI | `quality` и `docker`: Success после `collectstatic` перед pytest | Проверено |
+| Контейнерный реестр | `ghcr.io/ramig2007/officeflow:latest` опубликован с видимостью Private | Подтверждено |
 
-| Вид проверки | Результат |
-|---|---|
-| AST parse Python files | успешно, 28 файлов |
-| `compileall` Python | успешно (синтаксическая компиляция) |
-| JavaScript parse Node `--check` | успешно, `static/js/app.js`, `scripts/loadtest.js` |
-| YAML parse PyYAML | успешно, 6 конфигураций |
-| JSON parse | успешно, 3 файла |
-| Template tag nesting and named Django URL references | успешно, 15 HTML шаблонов, структурная проверка |
-| Offline mock CSS visual viewport widths 375/768/1440 | без горизонтального overflow после исправления; **не является Django UI E2E тестом** |
+### Особенности тестирования
 
-## Что нельзя считать проверенным
+- HTTP-нагрузка 200 RPS измерена на эндпоинтах `/rooms/`, `/schedule/`, `/my-bookings/` для авторизованного тестового пользователя, а не для сценария создания броней.
+- Значение p95 относится к короткому 30-секундному тесту в локальной сети Docker. Это не измерение доступности системы за месяц.
+- Восстановление проверено во временной PostgreSQL-базе в том же контейнере; аварийное восстановление на отдельной машине не проверялось.
+- GHCR-пакет приватный: стороннему получателю нужен доступ к пакету/репозиторию и авторизация для скачивания. Наличие образа не означает доступность публичного сайта.
 
-- Django `manage.py check`, `makemigrations --check`, migrations и реальные HTTP responses **не запускались**: в текущей среде нет пакета Django и скачать зависимости не удалось из-за отсутствия сетевого доступа к Python package repository.
-- Docker Compose не запускался: в этой среде нет Docker CLI и Engine.
-- PostgreSQL exclusion constraint в действии, 2-thread transactional test, покрытие ≥70%, E2E Playwright против реального сервера, Grafana/Alertmanager и нагрузка 100–200 RPS **не проверены фактически**.
-- Никакой репозиторий GitHub, published image и внешний сайт не были созданы автоматически; локальный исходный код/архив не равен промышленному развертыванию.
-- Все SLA показатели — требуемые целевые значения. Отчёт `PILOT.md` пока только шаблон.
+## Что ещё предстоит оформить или подтвердить
 
-## Первое действие после извлечения на Windows
+1. Протокол опытной эксплуатации и реестр обнаруженных/устранённых дефектов по `docs/PILOT.md`.
+2. Нагрузочный сценарий записи бронирований и нескольких одновременных пользователей, если требуется отдельное доказательство.
+3. Наблюдение за доступностью в течение достаточного срока для заявления SLA 99,9%.
+4. Реальные каналы доставки оповещений (в демонстрационном профиле пока `null-receiver`).
+5. Передачу преподавателю доступа к приватному репозиторию и GHCR либо демонстрацию в согласованной среде.
+6. Итоговый отчёт, приложения со скриншотами и журналом проверок, демонстрационный сценарий.
 
-Выполнить `README.md` с Docker Desktop. После успешного подъёма: `python manage.py check`, `makemigrations --check --dry-run`, pytest PostgreSQL, E2E, k6, исправить все выявленные ошибки и дополнить реестр дефектов с доказательствами.
+## Где находятся подробности
+
+- `docs/REQUIREMENTS.md` — матрица ИСП49;
+- `docs/LOADTEST_RESULTS_2026-11-19.md` — нагрузочное тестирование;
+- `docs/E2E_BROWSER_RUN.md` — браузерные проверки;
+- `docs/BACKUP_VALIDATION.md` — резервные копии;
+- `infra/prometheus/alerts.test.yml` — тесты алертов;
+- `.github/workflows/ci.yml` — CI/CD.
+
+Основная работающая база и `.env` не должны включаться в Git-репозиторий. Демонстрационная система не заявляется как промышленная.
