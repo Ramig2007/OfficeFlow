@@ -28,16 +28,39 @@ class RegisterForm(UserCreationForm):
         return email
 
 
+class HourOnlyDateTimeWidget(forms.SplitDateTimeWidget):
+    """Date plus explicit hour selection, matching the server's whole-hour rule.
+
+    A native ``<input type=time step=3600>`` can leave the browser's minute
+    wheel stuck at the current minute. A select makes the valid values clear.
+    """
+
+    def __init__(self):
+        super().__init__(date_format="%Y-%m-%d", date_attrs={"type": "date"})
+        self.widgets[1] = forms.Select(
+            attrs={"aria-label": "Время (целые часы)"},
+            choices=[(f"{hour:02d}:00", f"{hour:02d}:00") for hour in range(24)],
+        )
+
+    def decompress(self, value):
+        parts = super().decompress(value)
+        if parts[1] is not None:
+            parts[1] = parts[1].strftime("%H:%M")
+        return parts
+
+
 class BookingForm(forms.Form):
     room = forms.ModelChoiceField(label="Переговорная", queryset=Room.objects.filter(is_active=True))
     title = forms.CharField(label="Тема встречи", max_length=140)
     starts_at = forms.SplitDateTimeField(
         label="Начало", input_date_formats=["%Y-%m-%d"], input_time_formats=["%H:%M"],
-        widget=forms.SplitDateTimeWidget(date_attrs={"type": "date"}, time_attrs={"type": "time", "step": 3600}),
+        widget=HourOnlyDateTimeWidget(),
+        help_text="Время выбирается по целым часам (например, 15:00).",
     )
     ends_at = forms.SplitDateTimeField(
         label="Окончание", input_date_formats=["%Y-%m-%d"], input_time_formats=["%H:%M"],
-        widget=forms.SplitDateTimeWidget(date_attrs={"type": "date"}, time_attrs={"type": "time", "step": 3600}),
+        widget=HourOnlyDateTimeWidget(),
+        help_text="Время выбирается по целым часам (например, 15:00).",
     )
     notes = forms.CharField(label="Комментарий", required=False, widget=forms.Textarea(attrs={"rows": 3}))
 

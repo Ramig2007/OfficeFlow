@@ -23,3 +23,11 @@ Thumbs.db
 # Backups/exports
 backups/
 *.sql.gz
+
+# Local environment and test artifacts
+.env
+backups/
+e2e/artifacts/
+*.bak
+*.dump
+compose.override.yaml

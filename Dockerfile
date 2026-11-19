@@ -8,4 +8,4 @@ COPY . .
 RUN mkdir -p /app/staticfiles && chown -R officeflow:officeflow /app
 USER officeflow
 EXPOSE 8000
-CMD ["gunicorn", "officeflow.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "1", "--threads", "8", "--timeout", "40", "--access-logfile", "-"]
+CMD ["gunicorn", "officeflow.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--threads", "4", "--timeout", "40", "--access-logfile", "-"]

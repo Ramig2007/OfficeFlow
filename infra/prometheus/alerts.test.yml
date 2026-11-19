@@ -1,0 +1,114 @@
+# Offline/unit tests for all five OfficeFlow Prometheus alert rules.
+# Does not change live metrics, stop containers, or touch PostgreSQL.
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+evaluation_interval: 15s
+
+tests:
+  - name: "Healthy services must not fire alerts"
+    interval: 15s
+    input_series:
+      - series: 'up{job="officeflow"}'
+        values: '1+0x40'
+      - series: 'up{job="postgres"}'
+        values: '1+0x40'
+      - series: 'up{job="redis"}'
+        values: '1+0x40'
+      - series: 'django_http_responses_total_by_status_total{status="200"}'
+        values: '0+1000x40'
+      - series: 'django_http_responses_total_by_status_total{status="500"}'
+        values: '0+0x40'
+      - series: 'django_http_requests_latency_including_middlewares_seconds_bucket{le="0.1"}'
+        values: '0+1000x40'
+      - series: 'django_http_requests_latency_including_middlewares_seconds_bucket{le="0.2"}'
+        values: '0+1000x40'
+      - series: 'django_http_requests_latency_including_middlewares_seconds_bucket{le="0.5"}'
+        values: '0+1000x40'
+      - series: 'django_http_requests_latency_including_middlewares_seconds_bucket{le="1"}'
+        values: '0+1000x40'
+      - series: 'django_http_requests_latency_including_middlewares_seconds_bucket{le="+Inf"}'
+        values: '0+1000x40'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: OfficeFlowServiceDown
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: OfficeFlowDatabaseDown
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: OfficeFlowRedisDown
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: OfficeFlowErrorRateHigh
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: OfficeFlowLatencyP95High
+        exp_alerts: []
+
+  - name: "Unhealthy services and degraded HTTP must fire alerts"
+    interval: 15s
+    input_series:
+      - series: 'up{job="officeflow"}'
+        values: '0+0x40'
+      - series: 'up{job="postgres"}'
+        values: '0+0x40'
+      - series: 'up{job="redis"}'
+        values: '0+0x40'
+      - series: 'django_http_responses_total_by_status_total{status="200"}'
+        values: '0+1000x40'
+      - series: 'django_http_responses_total_by_status_total{status="500"}'
+        values: '0+10x40'
+      - series: 'django_http_requests_latency_including_middlewares_seconds_bucket{le="0.1"}'
+        values: '0+200x40'
+      - series: 'django_http_requests_latency_including_middlewares_seconds_bucket{le="0.2"}'
+        values: '0+300x40'
+      - series: 'django_http_requests_latency_including_middlewares_seconds_bucket{le="0.5"}'
+        values: '0+700x40'
+      - series: 'django_http_requests_latency_including_middlewares_seconds_bucket{le="1"}'
+        values: '0+1000x40'
+      - series: 'django_http_requests_latency_including_middlewares_seconds_bucket{le="+Inf"}'
+        values: '0+1000x40'
+    alert_rule_test:
+      # All have a `for:` delay, so no alert should be firing at 30 seconds.
+      - eval_time: 30s
+        alertname: OfficeFlowServiceDown
+        exp_alerts: []
+      - eval_time: 30s
+        alertname: OfficeFlowDatabaseDown
+        exp_alerts: []
+      - eval_time: 30s
+        alertname: OfficeFlowRedisDown
+        exp_alerts: []
+      - eval_time: 30s
+        alertname: OfficeFlowErrorRateHigh
+        exp_alerts: []
+      - eval_time: 30s
+        alertname: OfficeFlowLatencyP95High
+        exp_alerts: []
+      # All conditions persist for longer than their configured `for:` delays.
+      - eval_time: 8m
+        alertname: OfficeFlowServiceDown
+        exp_alerts:
+          - exp_labels: {job: officeflow, severity: critical}
+            exp_annotations: {summary: "OfficeFlow не отвечает на метрики"}
+      - eval_time: 8m
+        alertname: OfficeFlowDatabaseDown
+        exp_alerts:
+          - exp_labels: {job: postgres, severity: critical}
+            exp_annotations: {summary: "PostgreSQL exporter недоступен"}
+      - eval_time: 8m
+        alertname: OfficeFlowRedisDown
+        exp_alerts:
+          - exp_labels: {job: redis, severity: critical}
+            exp_annotations: {summary: "Redis exporter недоступен"}
+      - eval_time: 8m
+        alertname: OfficeFlowErrorRateHigh
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations: {summary: "Доля 5xx выше 0,1% за 5 минут"}
+      - eval_time: 8m
+        alertname: OfficeFlowLatencyP95High
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations: {summary: "p95 HTTP latency превышает 200 мс"}

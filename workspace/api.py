@@ -250,6 +250,6 @@ class ExportAPI(APIView):
 
 
 router = DefaultRouter()
-router.register("rooms", RoomViewSet, basename="room")
-router.register("bookings", BookingViewSet, basename="booking")
-router.register("users", UserViewSet, basename="user")
+router.register("rooms", RoomViewSet, basename="api-room")
+router.register("bookings", BookingViewSet, basename="api-booking")
+router.register("users", UserViewSet, basename="api-user")
