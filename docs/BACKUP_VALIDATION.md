@@ -22,6 +22,15 @@
 
 ## Как повторить проверку
 
+Для Linux/VPS также добавлены `scripts/backup.sh` и `scripts/test-restore.sh`. Первый создаёт архив и SHA-256; второй выполняет полное восстановление во временную БД, сравнивает counts и проверяет constraint, не изменяя исходную БД:
+
+```bash
+bash scripts/backup.sh
+bash scripts/test-restore.sh backups/officeflow-YYYYMMDDTHHMMSSZ.dump
+```
+
+Linux-скрипты добавлены в CI для проверки синтаксиса, но фактическое выполнение на VPS ещё не проводилось.
+
 Запускать в **PowerShell из корня OfficeFlow**, где расположены `compose.yaml`, `.env` и `scripts/`.
 
 ## 1. Создать резервную копию
