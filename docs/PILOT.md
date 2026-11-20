@@ -51,7 +51,7 @@
 | Prometheus | 3/3 targets UP | Локальный стенд |
 | Prometheus rules | 5 правил проверены через `promtool test rules`: SUCCESS | Проверка правил не равна доставке уведомлений |
 | Alertmanager | Тестовый alert принят и направлен в `null-receiver` | Реальные уведомления не отправляются |
-| GitHub Actions main | Run #5 на commit `6dbb191`: jobs `quality` и `docker` — Success | Это проверка CI, не публичный deploy |
+| GitHub Actions | Main run #40: jobs `quality` и `docker` — Success; Docker runtime smoke проверил migrations, readiness и CSS через Nginx | Ephemeral CI, не публичный VPS deploy |
 
 Подробные протоколы: `docs/E2E_BROWSER_RUN.md`, `docs/LOADTEST_RESULTS_2026-11-19.md`, `docs/BACKUP_VALIDATION.md`, `docs/STATUS.md`.
 
