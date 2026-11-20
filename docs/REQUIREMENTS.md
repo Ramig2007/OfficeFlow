@@ -9,8 +9,8 @@
 | BR-01 | Список комнат | `rooms`, `/api/v1/rooms/`; каталог прошёл ручную и browser smoke проверку | Проверено в локальном сценарии |
 | BR-02 | Занятость по часам | недельный `schedule`, `/api/v1/schedule/`; страница расписания проверена в Playwright | Проверено в smoke-сценарии |
 | BR-03 | Бронирование 1–4 часа | `services._validate_time`, форма, API; ручное создание и тесты диапазона времени | Проверено в заявленном сценарии |
-| BR-04 | Изменение и отмена | `services.update_booking/cancel_booking`, интерфейс/API; Chromium acceptance 21/21, плюс 3750 полных циклов create/edit/cancel | Проверено автоматически в PR CI #93 и #106; ручное редактирование отдельно не зафиксировано |
-| BR-05 | Админ CRUD комнат и права | `/control/rooms/`, `/control/users/`, API; Chromium create/edit/deactivate и проверки прав | Автоматически проверено в PR CI #93 (21/21); ручная приёмка отдельно |
+| BR-04 | Изменение и отмена | `services.update_booking/cancel_booking`, интерфейс/API; Chromium 27/27 и 3750 полных циклов create/edit/cancel | Проверено в PR CI #117 и #106; ручное редактирование отдельно не зафиксировано |
+| BR-05 | Админ CRUD комнат и права | `/control/rooms/`, `/control/users/`, API; Chromium create/edit/deactivate, назначение и отзыв ролей | Автоматически проверено в PR CI #117 (27/27); ручная приёмка отдельно |
 | BR-06 | Авторизация и история | Django auth, `/my-bookings/`; вход и история проверены в пользовательском/E2E прогоне | Проверено в smoke-сценарии |
 | BR-07 | Конфликт двойной брони | блокировка строки Room, PG GiST constraint и concurrency test в PostgreSQL CI | Проверено в PostgreSQL CI; отдельный write-load PR #17 успешно завершён без конфликтов на раздельных слотах |
 | BR-08 | Базовая отчётность | `/reports/`, `/api/v1/reports/summary/`; CSV-экспорт проверен пользователем | CSV подтверждён; полная отчётность проверяется отдельно |
@@ -27,7 +27,7 @@
 | 1.2 | IDE + линтер + форматер | `.vscode/`, `pyproject.toml`, Ruff | конфигурация |
 | 1.3 | Репозиторий Git | публичный `Ramig2007/OfficeFlow`, README и `.gitignore` | Проверено в GitHub |
 | 1.4 | Окружение с app, БД, Redis | `compose.yaml`, `Dockerfile`; локальный стек работал, app healthy | Проверено локально |
-| 1.5 | CI: сборка, тесты, стиль | `.github/workflows/ci.yml` и `scale-validation.yml`; PR CI #106 | Quality + Docker + Scale Validation Success; 68 pytest, Chromium 21/21 и k6 испытания |
+| 1.5 | CI: сборка, тесты, стиль | `.github/workflows/ci.yml` и `scale-validation.yml`; PR CI #106/#117 | Quality + Docker + Scale Validation Success; 68 pytest, Chromium 27/27, independent PostgreSQL recovery |
 | 1.6 | Доступный Docker-образ | `ghcr.io/ramig2007/officeflow:latest` опубликован | Пакет Private; публичная доступность не подтверждена |
 
 ## 2. Разработка программного кода
@@ -51,7 +51,7 @@
 | 3.1 | Таблица компонент/назначение/обоснование | `CAPACITY.md` | документация |
 | 3.2 | CPU/RAM/диск на 1000 пользователей, 100 RPS | формульная оценка `CAPACITY.md` | оценка, не измерение |
 | 3.3 | Отказоустойчивость, репликация | топология и ограничения в `CAPACITY.md` | проектная рекомендация |
-| 3.4 | Backup/restore | `scripts/backup.ps1`, `test-restore.ps1`, `backup.sh`, `test-restore.sh` | Windows restore проверен во временной БД; Linux scripts прошли syntax CI, на VPS ещё не запускались |
+| 3.4 | Backup/restore | `backup.ps1`, `test-restore.ps1`, `backup.sh`, `test-restore.sh`, `test-restore-independent.sh` | CI #117: **INDEPENDENT_RESTORE_OK** в отдельном PostgreSQL контейнере; off-host хранилище и отдельный сервер ещё не проверены |
 | 3.5 | Healthcheck | `/health/live/`, `/health/ready/`, Compose checks; app healthy локально | Проверено локально |
 | 3.6 | Бенчмарки и обоснования | `CAPACITY.md`, k6 baseline и `SCALE_RESULTS_2026-11-21.md` | Подтверждены 1000 отдельных синтетических сессий и 3750 create/edit/cancel циклов в PR CI #106; production не измерен |
 
@@ -85,7 +85,7 @@
 | 6.1 | Unit бизнес-логики | `test_booking_service.py`, `test_uptime_monitoring.py` | PR CI #106: 68 passed |
 | 6.2 | Integration API + PostgreSQL | `test_http_api.py`, PostgreSQL service в CI | CI quality прошёл успешно |
 | 6.3 | Проверка транзакций/конкурентности | `test_concurrent_booking_only_one_wins` | Запущен в PostgreSQL CI, job прошёл |
-| 6.4 | E2E сценарии | `e2e/browser_smoke.py` (Playwright Chromium), Docker CI | 21/21 browser acceptance в PR CI #93 и #106: booking CRUD, VIP approval/reject, room admin, responsive 375/768 px |
+| 6.4 | E2E сценарии | `e2e/browser_smoke.py` (Playwright Chromium), Docker CI | **27/27** browser acceptance в PR CI #117: booking CRUD, VIP, room admin, регистрация/logout, роли, CSV, 375/768 px |
 | 6.5 | Load JMeter/k6 | `scripts/loadtest.js`, `scripts/loadtest-auth-read.js`, 1000 VU и create/edit/cancel k6 | PR CI #106: 1000 отдельных логинов, 3750 жизненных циклов (11 250 записей), все checks успешны |
 | 6.6 | Статический анализ | Ruff, Bandit, static audit, Django `check`, `check --deploy` и OpenAPI schema validation | PR CI #106 quality Success |
 | 6.7 | ≥70% покрытия | CI gate на `workspace.services` + `workspace.queries` | PR CI #106: 91,67% в двух критических модулях, 68 pytest passed, порог выполнен |
@@ -117,4 +117,4 @@
 
 ## Критерий финального закрытия
 
-Подтверждены локальный Docker-стенд, PostgreSQL concurrency CI, 68 pytest в PR CI #106, 91,67% покрытия двух критических модулей, Chromium acceptance 21/21, 8/8 ручных пользовательских сценариев, краткие read-only тесты, 1000 отдельных синтетических логинов, 3750 полных циклов create/edit/cancel (11 250 операций записи), backup/restore во временной БД и защита приватности API расписания. Подробности: `SCALE_RESULTS_2026-11-21.md`. До полной приёмки остаются внешняя эксплуатационная среда и HTTPS smoke (если требуется), off-host backup, проверка доставки алертов, длительное внешнее измерение SLA 99,9%, формальная приёмка, скриншоты и финальный отчёт. 1000 VU доказаны лишь для конкретного профиля на CI runner, а не для production сервера.
+Подтверждены локальный Docker-стенд, PostgreSQL concurrency CI, 68 pytest в PR CI #106, 91,67% покрытия двух критических модулей, Chromium acceptance **27/27** в CI #117, 8/8 ручных пользовательских сценариев, краткие read-only тесты, 1000 отдельных синтетических логинов, 3750 полных циклов create/edit/cancel (11 250 операций записи), backup/restore в отдельном PostgreSQL контейнере (CI #117) и защита приватности API расписания. Подробности: `SCALE_RESULTS_2026-11-21.md`. До полной приёмки остаются внешняя эксплуатационная среда и HTTPS smoke (если требуется), off-host backup, проверка доставки алертов, длительное внешнее измерение SLA 99,9%, формальная приёмка, скриншоты и финальный отчёт. 1000 VU доказаны лишь для конкретного профиля на CI runner, а не для production сервера.
