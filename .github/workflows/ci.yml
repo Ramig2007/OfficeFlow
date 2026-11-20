@@ -57,7 +57,7 @@ jobs:
       - name: Static project structure audit
         run: python scripts/static_audit.py
       - name: Compile operational helper scripts
-        run: python -m py_compile scripts/render_alertmanager_config.py
+        run: python -m py_compile scripts/render_alertmanager_config.py scripts/uptime_probe.py scripts/uptime_report.py
       - name: Django checks
         run: python manage.py check
       - name: Validate OpenAPI schema
