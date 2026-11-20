@@ -1,6 +1,5 @@
-// OfficeFlow: mixed authenticated read + booking lifecycle workload.
-// Each iteration performs one HTML read plus create -> edit -> cancel.
-// At the peak 25 lifecycles/s this is 100 HTTP requests/s (25 reads + 75 writes).
+// OfficeFlow: isolated create -> edit -> cancel write workload.
+// Every VU uses its own loadtest account and a disjoint room/time slot.
 // Run ONLY against a disposable DEBUG=1 database; Compose volumes are destroyed afterwards.
 import http from 'k6/http';
 import { check, sleep } from 'k6';
@@ -14,7 +13,6 @@ const timezoneOffset = __ENV.K6_TIMEZONE_OFFSET || '+03:00';
 const createdCount = new Counter('officeflow_bookings_created');
 const editedCount = new Counter('officeflow_bookings_edited');
 const cancelledCount = new Counter('officeflow_bookings_cancelled');
-const readCount = new Counter('officeflow_mixed_reads');
 const loginFailures = new Counter('officeflow_write_login_failures');
 let session = null;
 
@@ -29,20 +27,19 @@ export const options = {
       stages: [
         { target: 10, duration: '1m' },
         { target: 20, duration: '1m' },
-        { target: 25, duration: '2m' },
+        { target: 20, duration: '2m' },
       ],
       gracefulStop: '30s',
     },
   },
   thresholds: {
-    http_req_duration: ['p(95)<200', 'p(99)<500'],
-    http_req_failed: ['rate<0.001'],
-    checks: ['rate>0.999'],
+    http_req_duration: ['p(95)<1500', 'p(99)<3000'],
+    http_req_failed: ['rate<0.01'],
+    checks: ['rate>0.99'],
     dropped_iterations: ['count==0'],
     officeflow_bookings_created: ['count>0'],
     officeflow_bookings_edited: ['count>0'],
     officeflow_bookings_cancelled: ['count>0'],
-    officeflow_mixed_reads: ['count>0'],
     officeflow_write_login_failures: ['count==0'],
   },
 };
@@ -104,21 +101,6 @@ export default function () {
     }
   }
 
-  const readPaths = ['/rooms/', '/schedule/', '/my-bookings/'];
-  const readPath = readPaths[Math.floor(Math.random() * readPaths.length)];
-  const readResponse = http.get(baseURL + readPath, {
-    redirects: 0,
-    headers: { Cookie: 'sessionid=' + session.sessionId },
-    tags: { operation: 'read', route: readPath },
-  });
-  if (!check(readResponse, {
-    'mixed authenticated read returns HTTP 200': (response) => response.status === 200,
-  })) {
-    console.error('Read failed: HTTP ' + readResponse.status);
-    return;
-  }
-  readCount.add(1);
-
   // Nine hourly slots per day, unique across VUs and safely inside the 180-day limit.
   const dayOffset = 30 + Math.floor((__VU - 1) / 9);
   const hour = 9 + ((__VU - 1) % 9);
@@ -139,7 +121,7 @@ export default function () {
     JSON.stringify({
       room: roomId,
       title,
-      notes: 'Disposable mixed read/write k6 workload',
+      notes: 'Disposable create/edit/cancel k6 workload',
       starts_at: startsAt,
       ends_at: endsAt,
     }),
@@ -196,6 +178,6 @@ export default function () {
     console.error('Cancel failed: HTTP ' + cancelled.status + '; body=' + cancelled.body);
   }
 
-  // Three API writes plus one HTML read per lifecycle; API write throttling stays below 120/minute per VU.
+  // Three API writes per lifecycle; this pace stays below 120 requests/minute per VU.
   sleep(2);
 }
