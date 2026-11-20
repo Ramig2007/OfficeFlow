@@ -2,18 +2,18 @@
 
 **Дата проверки:** 21 ноября 2026 г.  
 **Репозиторий:** https://github.com/Ramig2007/OfficeFlow  
-**Основная ветка:** `main`; PR #8, #9, #10, #12, #13, #16, #17 и #18 объединены. PR #18 — merge commit `3910bfd`.  
+**Основная ветка:** `main`; PR #8, #9, #10, #12, #13, #16, #17, #18 и #19 объединены. PR #19 — merge commit `5d27402`.  
 **Подтверждённые CI:** PR run #106 (`quality`, `docker`, `scale-validation`) — Success: 68 pytest, 1000 независимых синтетических логинов, 3750 полных циклов create/edit/cancel. **PR run #117 (`quality`, `docker`) — Success:** Chromium 27/27, независимый PostgreSQL restore и fault recovery. PR #18 объединён в `main` squash merge `3910bfd`. Результаты относятся к проверенному коду PR до merge. 
-**Назначение:** учебная сдача ИСП49 и подготовка к последующему VPS-развёртыванию. Это не заключение о промышленной готовности.
+**Назначение:** учебная сдача ИСП49 и подготовка к выбранному бесплатному размещению на Render + Neon вместо VPS. Это не заключение о промышленной готовности.
 
 ## 1. Подтверждённое состояние
 
 | Область | Подтверждённый факт | Ограничение |
 |---|---|---|
 | Репозиторий | Публичный GitHub source repo | GHCR package Private |
-| CI | PR #17 run #106: quality/docker/scale-validation Success; PR #18 run #117: quality/docker Success | Проверенный код перенесён в main squash merge 3910bfd |
+| CI | PR #17 #106, PR #18 #117, PR #19 #128 — успешны; CI #128: **77 pytest** и Render image checks | Проверенный код перенесён в main; реальный Render/Neon deploy ещё не проведён |
 | Docker runtime | Compose stack стартовал в CI, миграции применились, readiness 200, CSS отдался через Nginx | Ephemeral GitHub runner, не публичный сервер |
-| Django tests | 60/60 исторически локально; **68 passed** в PR CI #106 | Не считать покрытием всех возможных сценариев |
+| Django tests | 60/60 исторически локально; **77 passed** в PR CI #128 | Не считать покрытием всех возможных сценариев |
 | Coverage | 91,67% для `workspace.services` и `workspace.queries` | Не покрытие всего репозитория |
 | Browser E2E | Playwright Chromium **27/27** в PR CI #117, screenshots uploaded | Временная CI-база, не публичный хост |
 | User acceptance | 8/8 сценариев — УСПЕХ | Один пользователь, локальный стенд |
@@ -23,7 +23,7 @@
 | Backup/restore | **INDEPENDENT_RESTORE_OK** в CI #117: SHA-256, другой контейнер, counts и GiST constraint | На том же Docker-хосте, off-host storage не подтверждено |
 | Monitoring | Prometheus targets 3/3 UP, 5 rules validated; CI #93 проверил optional HTTPS webhook config | Доставка реальным адресатам пока не проверена |
 | API privacy | Общий schedule API ограничен календарными полями; тест подтверждает отсутствие внутренних заметок и данных владельца | PR #12; CI run #66 прошёл до merge |
-| Production settings | HSTS, HTTPS redirect, secure cookies, explicit host/CSRF checks, fail-fast guards | Требуется настоящий домен и VPS |
+| Production settings | HSTS, HTTPS redirect, secure cookies, host/CSRF guards и Neon TLS verify-full | Для схемы Render/Neon не нужны VPS и платный домен, но нужен реальный deploy и облачная проверка |
 | Backup tooling | Linux backup и temporary restore scripts добавлены | На VPS ещё не выполнялись |
 | Demo fixtures | Новые demo-аккаунты получают заданный пароль; повторный seed сохраняет существующий пароль | PR #13; regression tests в main CI run #73 |
 
@@ -49,8 +49,8 @@ Production-readiness изменения объединены в основную
 |---|---|---|
 | P1 | Итоговый отчёт | Word-документ подготовлен; вставить фактические скриншоты интерфейса и при необходимости добавить подписи/согласование |
 | P1 | Формальная приёмка | Указать проверяющего/ответственного и получить подпись или согласование, если требует преподаватель |
-| P1 | Реальный хостинг | Нужны VPS, домен/DNS и доступ администратора; затем выполнить deploy |
-| P1 | Внешний smoke-test | Проверить сайт по публичному HTTPS домену после размещения |
+| P1 | Реальный хостинг | Выбрана бесплатная схема Render + Neon, подготовлена в PR #19; нужны облачная БД, Render Web Service и защищённые env vars |
+| P1 | Внешний smoke-test | Проверить сайт по HTTPS-поддомену `*.onrender.com` после размещения |
 | P2 | Backup вне VPS | Настроить зашифрованную копию в отдельном хранилище и проверить restore на отдельной машине |
 | P2 | Alertmanager | Настроить и проверить реального получателя, если это требуется для сдачи |
 | Выполнено для CI-профиля | Write load | 3750 create/edit/cancel циклов, пиковая ступень 20 циклов/с (≈60 write RPS), 0 ошибок; результаты относятся только к CI runner |
@@ -58,6 +58,8 @@ Production-readiness изменения объединены в основную
 | P3 | SLA 99,9% | Длительный мониторинг; короткий локальный тест SLA не доказывает |
 
 ## 4. Критерии публичного запуска
+
+Основная выбранная схема: `docs/RENDER_NEON_DEPLOYMENT.md` (Render Free + Neon Free). Нижеследующий список относится к альтернативному развёртыванию на VPS/Caddy, если оно понадобится позднее. Для Render достаточно HTTPS поддомена `.onrender.com`, без Caddy и отдельного VPS.
 
 Считать хостинг завершённым только после того, как:
 - домен указывает на VPS;
