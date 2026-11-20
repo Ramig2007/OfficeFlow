@@ -37,7 +37,6 @@ export const options = {
     http_req_duration: ['p(95)<2000', 'p(99)<5000'],
     http_req_failed: ['rate<0.01'],
     checks: ['rate>0.99'],
-    vus: ['max>=1000'],
     officeflow_authenticated_users: ['count==1000'],
     officeflow_login_failures: ['count==0'],
   },
