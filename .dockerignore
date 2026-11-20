@@ -16,6 +16,7 @@ e2e
 workspace/tests
 docs
 scripts
+!scripts/render-start.sh
 .github
 .vscode
 README*
