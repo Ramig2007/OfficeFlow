@@ -58,6 +58,7 @@ jobs:
           DEMO_PASSWORD: "OfficeFlow-Scale-CI-Only-2026!"
         run: |
           mkdir -p "$RUNNER_TEMP/officeflow-scale-results"
+          chmod 0777 "$RUNNER_TEMP/officeflow-scale-results"
           room_id="$(docker compose exec -T app python -c 'import os; os.environ.setdefault("DJANGO_SETTINGS_MODULE", "officeflow.settings"); import django; django.setup(); from workspace.models import Room; print(Room.objects.get(slug="mayak").pk)' | tr -d '\r')"
           test -n "$room_id"
 
