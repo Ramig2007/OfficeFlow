@@ -2,60 +2,54 @@
 
 **Дата проверки:** 20 ноября 2026 г.  
 **Репозиторий:** https://github.com/Ramig2007/OfficeFlow  
-**Проверенная основная ветка:** `main`, commit `6dbb191` до изменений этой ветки.  
-**Рабочая ветка подготовки:** `finalize/hosting-readiness-20261120`.  
+**Основная ветка:** `main`, commit `28f9693`.  
+**CI:** GitHub Actions run #40 — `quality` и `docker` Success.  
 **Назначение:** учебная сдача ИСП49 и подготовка к последующему VPS-развёртыванию. Это не заключение о промышленной готовности.
 
-## 1. Состояние основной ветки до текущих изменений
-
-Подтверждено ранее зафиксированными локальными результатами и документами проекта:
+## 1. Подтверждённое состояние
 
 | Область | Подтверждённый факт | Ограничение |
 |---|---|---|
-| Пользовательская проверка | 8/8 сценариев отмечены пользователем как УСПЕХ | Один пользователь, локальный стенд |
-| Django tests | 60/60 прошли в локальном прогоне | Не заменяет независимую приёмку |
-| Покрытие | 91,67% для `workspace.services` и `workspace.queries` в CI | Не покрытие всего репозитория |
-| Browser E2E | Playwright Chromium 9/9 | Smoke-набор; запись бронирований этим прогоном не выполнялась |
-| k6 | около 199,2 HTTP RPS, p95 13,19 мс, 0% ошибок на 30-секундном авторизованном чтении | Одна сессия; не 1000 пользователей и не нагрузка на запись |
-| Backup/restore | `RESTORE_TEST_OK`, количества записей совпали во временной БД | Тест восстановления в том же PostgreSQL-контейнере |
-| Мониторинг | Prometheus 3/3 targets UP, 5 правил проверены | Alertmanager использует `null-receiver`; уведомления людям не доставляются |
-| GitHub Actions | Run #5 на commit `6dbb191`: `quality` и `docker` — success | Успешная сборка не равна публичному deploy |
-| Репозиторий | GitHub source repository публичный | GHCR package ранее был опубликован как Private |
+| Репозиторий | Публичный GitHub source repo | GHCR package Private |
+| CI | Run #40: quality + docker Success | Не заменяет внешний deploy |
+| Docker runtime | Compose stack стартовал в CI, миграции применились, readiness 200, CSS отдался через Nginx | Ephemeral GitHub runner, не публичный сервер |
+| Django tests | 60/60 в локальном прогоне | Не считать это покрытием всех возможных сценариев |
+| Coverage | 91,67% для `workspace.services` и `workspace.queries` | Не покрытие всего репозитория |
+| Browser E2E | Playwright Chromium 9/9 | Read-only smoke |
+| User acceptance | 8/8 сценариев — УСПЕХ | Один пользователь, локальный стенд |
+| k6 | 200 RPS read-only, ~199,2 HTTP req/s, p95=13,19 мс, 0% HTTP errors, 30 секунд | Одна сессия, GET only |
+| Backup/restore | `RESTORE_TEST_OK`, counts совпали, GiST constraint проверен | Restore в том же PostgreSQL контейнере |
+| Monitoring | Prometheus targets 3/3 UP, 5 rules validated | Alertmanager null receiver |
+| Production settings | HSTS, HTTPS redirect, secure cookies, explicit host/CSRF checks, fail-fast guards | Требуется настоящий домен и VPS |
+| Backup tooling | Linux backup и temporary restore scripts добавлены | На VPS ещё не выполнялись |
 
-Подробные первичные записи: `docs/USER_ACCEPTANCE_2026-11-19.md`, `docs/E2E_BROWSER_RUN.md`, `docs/LOADTEST_RESULTS_2026-11-19.md`, `docs/BACKUP_VALIDATION.md`, `docs/STATUS.md`.
+## 2. Что вошло в main
 
-## 2. Работы в ветке hosting-readiness
+Production-readiness изменения объединены в PR #1 и находятся в `main`:
+- Caddy automatic HTTPS и production Compose overlay;
+- Nginx loopback binding и передача HTTPS scheme до Django;
+- fail-closed Django production settings для secret, DB password, hosts, CSRF, cookies, redirect и HSTS;
+- сбор статики при старте контейнера;
+- исправлен `STATIC_URL=/static/`; CI проверяет фактическую отдачу CSS через Nginx;
+- Linux backup и full restore verification во временной PostgreSQL БД;
+- усиленный CI: Ruff, Bandit, static audit, Django deploy checks, migrations, collectstatic, pytest, Compose/Caddy validation, shell syntax, Docker runtime smoke;
+- GHCR tags `latest` и commit SHA;
+- Dependabot для pip и GitHub Actions;
+- обновлены README, STATUS, TESTING, PILOT, REQUIREMENTS, DEPLOYMENT и readiness records.
 
-В отдельной ветке подготовлены изменения, не затрагивающие `main` напрямую:
-
-- production Compose overlay с Caddy;
-- шаблон production-переменных без реальных секретов;
-- HTTPS reverse proxy и прокидывание исходной схемы запроса до Django;
-- привязка локального Nginx к loopback, чтобы публичный вход принимал Caddy;
-- обязательные production-переменные и настройки HSTS;
-- сбор статических файлов при старте контейнера, включая обновление существующего staticfiles volume;
-- Linux backup-скрипт с проверкой читаемости PostgreSQL dump и SHA-256;
-- обновление GitHub Actions до актуальных Node 24 совместимых major versions;
-- дополнительные CI проверки: Bandit, статический аудит, Django `check --deploy`, Compose/Caddy конфигурация и shell syntax;
-- публикация Docker image по `latest` и immutable commit SHA tag;
-- Dependabot для pip и GitHub Actions.
-
-Эти изменения подготовлены в PR #1. Первый CI run #6 прошёл успешно по jobs `quality` и `docker`; после последних обновлений документов требуется повторный CI. PR ещё не объединён в `main`.
-
-## 3. Остаток до сдачи ИСП49
+## 3. Остаток до сдачи ИСП49 и публичного запуска
 
 | Приоритет | Задача | Что требуется |
 |---|---|---|
-| P1 | Принять hosting-readiness PR | Проверить все CI jobs и diff; только затем merge в main |
 | P1 | Итоговый отчёт | Подготовить Word-документ, вставить фактические скриншоты интерфейса и доказательства CI/тестов |
 | P1 | Формальная приёмка | Указать проверяющего/ответственного и получить подпись или согласование, если требует преподаватель |
-| P1 | Протокол пилота | Перенести подтверждённые результаты в `docs/PILOT.md`; непроверенные пункты оставить незакрытыми |
-| P2 | Публичный хостинг | Нужны VPS, домен/DNS и доступ администратора; после этого выполнить реальный deploy |
-| P2 | Backup вне VPS | Настроить зашифрованную копию в отдельном хранилище и проверить восстановление на отдельной машине |
+| P1 | Реальный хостинг | Нужны VPS, домен/DNS и доступ администратора; затем выполнить deploy |
+| P1 | Внешний smoke-test | Проверить сайт по публичному HTTPS домену после размещения |
+| P2 | Backup вне VPS | Настроить зашифрованную копию в отдельном хранилище и проверить restore на отдельной машине |
 | P2 | Alertmanager | Настроить и проверить реального получателя, если уведомления входят в критерии сдачи |
-| P2 | Запись под нагрузкой | Отдельный изолированный сценарий с независимыми сессиями и PostgreSQL |
-| P3 | SLA 99,9% | Только после достаточно длительного мониторинга; короткий локальный тест SLA не доказывает |
-| P3 | 1000 одновременных пользователей | Нужен отдельный распределённый нагрузочный тест; текущие результаты этого не подтверждают |
+| P2 | Write load | Отдельный изолированный сценарий создания/редактирования/отмены брони |
+| P3 | 1000 пользователей | Отдельный распределённый тест с независимыми сессиями |
+| P3 | SLA 99,9% | Длительный мониторинг; короткий локальный тест SLA не доказывает |
 
 ## 4. Критерии публичного запуска
 
@@ -66,12 +60,12 @@
 - Django работает с `DEBUG=0`, корректными `ALLOWED_HOSTS` и `CSRF_TRUSTED_ORIGINS`;
 - БД, Redis и служебные панели не доступны напрямую из Интернета;
 - health endpoints возвращают 200;
-- статические файлы доступны;
+- CSS/JS доступны через Nginx;
 - проверены вход, каталог, бронирование, конфликт, VIP, права и CSV;
 - backup создан, скопирован за пределы VPS и восстановлен в тестовой БД.
 
 ## 5. Итог
 
-На имеющихся доказательствах OfficeFlow готов к учебной демонстрации ключевых пользовательских функций на локальном Docker-стенде. CI, браузерные проверки, ограниченный нагрузочный тест и backup/restore ранее проходили успешно. Текущая ветка добавляет недостающую подготовку к безопасному VPS-хостингу и усиливает CI.
+На имеющихся доказательствах OfficeFlow готов к учебной демонстрации ключевых пользовательских функций на локальном Docker-стенде. CI проверяет Django, безопасность, production-конфигурацию и фактический запуск контейнерного стека со статическими файлами. Production-конфигурация подготовлена и объединена в main.
 
 **Не заявлять** доказанный SLA 99,9%, работу при 1000 одновременных пользователях, производительность записи под нагрузкой или промышленную готовность до соответствующих измерений и эксплуатации.
