@@ -69,6 +69,18 @@ class BookingSerializer(serializers.ModelSerializer):
         ]
 
 
+class ScheduleBookingSerializer(serializers.ModelSerializer):
+    """Expose only calendar-safe booking fields to every authenticated employee."""
+
+    room_name = serializers.CharField(source="room.name", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+
+    class Meta:
+        model = Booking
+        fields = ["id", "room", "room_name", "title", "starts_at", "ends_at", "status", "status_display"]
+        read_only_fields = fields
+
+
 class BookingWriteSerializer(serializers.Serializer):
     room = serializers.PrimaryKeyRelatedField(queryset=Room.objects.filter(is_active=True))
     title = serializers.CharField(max_length=140, allow_blank=False)
@@ -225,7 +237,7 @@ class ScheduleAPI(APIView):
             fields={
                 "from": serializers.DateField(),
                 "to": serializers.DateField(),
-                "bookings": BookingSerializer(many=True),
+                "bookings": ScheduleBookingSerializer(many=True),
             },
         )
     )
@@ -238,11 +250,15 @@ class ScheduleAPI(APIView):
         bookings = Booking.objects.filter(
             status__in=Booking.ACTIVE_STATUSES, starts_at__lt=week_end,
             ends_at__gt=week_start, room__is_active=True,
-        ).select_related("room", "creator")
+        ).select_related("room")
         room = request.query_params.get("room", "")
         if room.isdigit():
             bookings = bookings.filter(room_id=int(room))
-        return Response({"from": date.isoformat(), "to": end.isoformat(), "bookings": BookingSerializer(bookings, many=True).data})
+        return Response({
+            "from": date.isoformat(),
+            "to": end.isoformat(),
+            "bookings": ScheduleBookingSerializer(bookings, many=True).data,
+        })
 
 
 class ReportSummaryAPI(APIView):

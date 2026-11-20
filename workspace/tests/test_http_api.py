@@ -139,13 +139,28 @@ def test_role_change_restricted_to_admin(member, manager):
     assert member.can_manage
 
 
-def test_api_schedule_shows_active_bookings(member, room, window):
-    create_booking(actor=member, room_id=room.pk, title="Команда", notes="", starts_at=window[0], ends_at=window[1])
+def test_api_schedule_exposes_only_calendar_safe_booking_fields(member, second_member, room, window):
+    create_booking(
+        actor=second_member, room_id=room.pk, title="Планирование команды",
+        notes="Внутренний комментарий: бюджет и кадровые изменения",
+        starts_at=window[0], ends_at=window[1],
+    )
     api = APIClient()
     api.force_authenticate(user=member)
     response = api.get("/api/v1/schedule/", {"date": window[0].date().isoformat()})
+
     assert response.status_code == 200
     assert len(response.data["bookings"]) == 1
+    booking = response.data["bookings"][0]
+    assert set(booking) == {
+        "id", "room", "room_name", "title", "starts_at", "ends_at", "status", "status_display",
+    }
+    assert booking["room_name"] == room.name
+    assert booking["title"] == "Планирование команды"
+    assert "notes" not in booking
+    assert "creator" not in booking
+    assert "creator_name" not in booking
+    assert "rejection_reason" not in booking
 
 
 def test_health_live_works_without_auth(client):
