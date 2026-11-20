@@ -190,7 +190,7 @@ jobs:
       - name: Seed isolated browser-test data
         env:
           DEMO_PASSWORD: "OfficeFlow-CI-Demo-Only-2026!"
-          LOADTEST_USERS: "10"
+          LOADTEST_USERS: "16"
         run: |
           docker compose exec -T \
             -e "DEMO_PASSWORD=$DEMO_PASSWORD" \
