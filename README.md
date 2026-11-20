@@ -2,19 +2,19 @@
 
 **OfficeFlow** — учебное веб-приложение для бронирования переговорных, построенное вокруг недельного расписания. Отдельный проект, не основанный на MeetingRoomBooking. Язык интерфейса: русский. Стек: Django 5.2 LTS, PostgreSQL, Redis, Django REST Framework, Nginx, Caddy (production TLS), Docker Compose, Prometheus, Grafana.
 
-> **Статус на 20.11.2026:** production-конфигурация и PR #8, #9, #10, #12 объединены в `main`. PR #12 ограничил состав данных общего API расписания и добавил регрессионный тест приватности; полный PR CI run #66 завершился успешно (`quality` и `docker`) до объединения в commit `6a9fe11`. Последний подтверждённый полный main CI run #63 для commit `8c1a71c` также завершился успешно. Quality включает Ruff, Bandit, static audit, Django checks, OpenAPI schema validation, migrations, collectstatic и 60 тестов с покрытием критических модулей 91,67%. Docker job проверил production Compose и Caddy, shell scripts, собрал и опубликовал образ в GHCR и выполнил runtime smoke: запуск приложения, миграции, readiness и отдачу статических файлов. Более ранние runs #41–#51 были отменены concurrency при последовательных обновлениях; актуальные main runs #58, #61 и #63 завершились успешно. Также ранее подтверждены 60/60 Django-тестов, Playwright 9/9, авторизованное чтение около 200 RPS и backup/restore. Исходный репозиторий публичный, GHCR package остаётся Private. Публичный VPS ещё не развёрнут. Результаты не доказывают длительный SLA 99,9%, работу при 1000 одновременных пользователях или производительность записи под нагрузкой.
+> **Статус на 20.11.2026:** PR #8, #9, #10, #12 и #13 объединены в `main`. PR #12 ограничил общий API расписания календарными полями, исключив заметки и личные данные автора; PR #13 добавил автоматический Playwright Chromium smoke в Docker CI и исправил инициализацию паролей новых demo-аккаунтов. Последний полный main CI run #73 для commit `1ee676b` завершился успешно: jobs `quality` и `docker` — Success, 62 pytest passed, покрытие `workspace.services` и `workspace.queries` — 91,67%, браузерный smoke — 9/9. Скриншоты `dashboard-desktop.png` и `rooms-mobile.png` загружены как artifact `officeflow-browser-e2e`. Исходный репозиторий публичный, GHCR package остаётся Private. Публичный VPS ещё не развёрнут. Краткий read-only тест не доказывает SLA 99,9%, работу при 1000 одновременных пользователях или производительность записи под нагрузкой.
 
 ## Подтверждённые результаты испытаний — 19.11.2026
 
 | Проверка | Фактический результат | Ограничение |
 |---|---|---|
-| Django / pytest | 60/60 в локальном прогоне; CI `quality` успешно прошёл | В CI измеряется покрытие `workspace.services` и `workspace.queries` |
+| Django / pytest | 60/60 в локальном прогоне пользователя; 62 passed в main CI run #73 | Покрытие в CI измеряется только для `workspace.services` и `workspace.queries` |
 | Покрытие критических модулей | 91,67% в CI (требование ≥70%) | Не равно покрытию всей системы |
-| Playwright E2E | 9/9 браузерных проверок Chromium | Smoke-набор, а не полная приёмка |
+| Playwright E2E | 9/9 Chromium checks локально и в main CI run #73; скриншоты сохранены в artifact | Read-only smoke-набор, а не полная приёмка |
 | k6, авторизованное чтение | 200 целевых RPS, 6001 итерация за 30 с, фактически ~199,2 HTTP RPS, p95 13,19 мс, 0% HTTP-ошибок, 0 interrupted iterations | Чтение `/rooms/`, `/schedule/`, `/my-bookings/` с одной тестовой сессией; не тест записи или 1000 пользователей |
 | PostgreSQL backup/restore | Сверены количества записей и ограничение пересечений, `RESTORE_TEST_OK` | Восстановление проверено на временной БД, не на резервном сервере |
 | Prometheus / Alertmanager | 3/3 цели `UP`, 5/5 правил `health=ok`, `promtool test rules`: `SUCCESS`; маршрутизация тестового события работает | `null-receiver` не отправляет реальные уведомления |
-| GitHub Actions | Main run #63: `quality` и `docker` Success; PR run #66 для security fix #12: оба job Success | Проверки CI не являются доказательством публичного развёртывания |
+| GitHub Actions | Main run #73 после PR #13: `quality` и `docker` Success; 62 pytest, Chromium E2E 9/9 | CI не является доказательством публичного развёртывания |
 | GHCR | `ghcr.io/ramig2007/officeflow:latest` опубликован | Пакет **Private**, для скачивания необходим соответствующий доступ |
 
 Подробности и ограничения: [`docs/STATUS.md`](docs/STATUS.md).
