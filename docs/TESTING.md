@@ -5,7 +5,7 @@
 | Уровень | Инструмент | Проверяемые сценарии | Доказательство |
 |---|---|---|---|
 | Unit | pytest + Django test DB | временные интервалы, 1–4 часа, пересечения, VIP, отмена, роли | CI / локальный pytest |
-| Integration | DRF APIClient + PostgreSQL | REST 201/400/403/404/409, CSV, IDOR, audit | CI log |
+| Integration | DRF APIClient + PostgreSQL | REST 201/400/403/404/409, CSV, IDOR, audit, schedule API privacy | CI log / PR #12 regression test |
 | Concurrency | 2 threads + PostgreSQL | только одна запись на занятый слот | PostgreSQL CI |
 | Browser smoke E2E | Playwright Chromium | login, dashboard, catalogue, schedule, permissions, mobile | `docs/E2E_BROWSER_RUN.md` |
 | Load | k6 | baseline liveness и авторизованные GET страницы | `docs/LOADTEST_RESULTS_2026-11-19.md` |
@@ -30,7 +30,7 @@
 11. Docker image build; push в GHCR выполняется только при push в `main`, с тегами `latest` и `sha-<commit>`;
 12. Runtime Compose smoke: app startup, migrations, readiness endpoint и фактическая отдача hashed CSS через Nginx.
 
-После merge PR #1 GitHub Actions run #40 завершился успешно: jobs `quality` и `docker` — Success. Docker job собрал и опубликовал образ, запустил Compose stack, применил миграции, проверил readiness и отдачу CSS через Nginx. Это проверяет контейнерный runtime в ephemeral CI, но не выполняет публичный VPS deploy.
+Подтверждённый полный main run #63 завершился успешно: jobs `quality` и `docker` — Success. Дополнительно PR #12 с исправлением приватности общего API расписания прошёл полный run #66: оба job завершились Success до merge commit `6a9fe11`. Docker job включает Compose runtime smoke, миграции, readiness и отдачу CSS через Nginx. Это проверяет контейнерный runtime в ephemeral CI, но не выполняет публичный VPS deploy.
 
 ## Unit и integration tests
 
@@ -49,7 +49,7 @@ python manage.py makemigrations --check --dry-run
 
 Тест `test_concurrent_booking_only_one_wins` использует `Barrier(2)` и одновременно создаёт две брони на одну комнату/интервал. Он пропускается на SQLite и запускается на PostgreSQL. В CI используется PostgreSQL 16; текущий quality job прошёл успешно.
 
-Ожидаемый инвариант: одна транзакция создаёт бронь, вторая получает конфликт, активная бронь остаётся одна. Независимое ограничение GiST exclusion остаётся последним уровнем защиты.
+Ожидаемый инвариант: одна транзакция создаёт бронь, вторая получает конфликт, активная бронь остаётся одна. Независимое ограничение GiST exclusion остаётся последним уровнем защиты. Отдельный тест schedule API подтверждает, что другой сотрудник не получает внутренние заметки и данные владельца бронирования.
 
 ## Browser E2E
 
