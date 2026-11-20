@@ -2,7 +2,7 @@
 
 **OfficeFlow** — учебное веб-приложение для бронирования переговорных, построенное вокруг недельного расписания. Отдельный проект, не основанный на MeetingRoomBooking. Язык интерфейса: русский. Стек: Django 5.2 LTS, PostgreSQL, Redis, Django REST Framework, Nginx, Caddy (production TLS), Docker Compose, Prometheus, Grafana.
 
-> **Статус на 20.11.2026:** PR #8, #9, #10, #12 и #13 объединены в `main`. PR #12 ограничил общий API расписания календарными полями, исключив заметки и личные данные автора; PR #13 добавил автоматический Playwright Chromium smoke в Docker CI и исправил инициализацию паролей новых demo-аккаунтов. Последний полный main CI run #73 для commit `1ee676b` завершился успешно: jobs `quality` и `docker` — Success, 62 pytest passed, покрытие `workspace.services` и `workspace.queries` — 91,67%, браузерный smoke — 9/9. Скриншоты `dashboard-desktop.png` и `rooms-mobile.png` загружены как artifact `officeflow-browser-e2e`. Исходный репозиторий публичный, GHCR package остаётся Private. Публичный VPS ещё не развёрнут. Краткий read-only тест не доказывает SLA 99,9%, работу при 1000 одновременных пользователях или производительность записи под нагрузкой.
+> **Статус на 21.11.2026:** PR #16 объединён в `main` (commit `f9a1957`). PR CI run #93: jobs `quality` и `docker` — **Success**, 62 pytest passed, покрытие критических модулей 91,67%, Chromium acceptance **21/21**, k6 **240** циклов создания/отмены, **720/720** проверок, **0** HTTP-ошибок, **0** потерянных итераций, HTTP p95 **16,92 мс**, до **11 активных VU**; PostgreSQL/Redis readiness восстановлен после контролируемого отключения. Подробности: `docs/VERIFICATION_2026-11-21.md`. Исходный код публичный; GHCR package остаётся Private, публичный VPS не развёрнут, SLA 99,9% и 1000 независимых пользователей не подтверждены.
 
 ## Подтверждённые результаты испытаний — 19.11.2026
 
@@ -10,11 +10,12 @@
 |---|---|---|
 | Django / pytest | 60/60 в локальном прогоне пользователя; 62 passed в main CI run #73 | Покрытие в CI измеряется только для `workspace.services` и `workspace.queries` |
 | Покрытие критических модулей | 91,67% в CI (требование ≥70%) | Не равно покрытию всей системы |
-| Playwright E2E | 9/9 Chromium checks локально и в main CI run #73; скриншоты сохранены в artifact | Read-only smoke-набор, а не полная приёмка |
-| k6, авторизованное чтение | 200 целевых RPS, 6001 итерация за 30 с, фактически ~199,2 HTTP RPS, p95 13,19 мс, 0% HTTP-ошибок, 0 interrupted iterations | Чтение `/rooms/`, `/schedule/`, `/my-bookings/` с одной тестовой сессией; не тест записи или 1000 пользователей |
+| Playwright E2E | 21/21 в CI PR run #93, включая бронирования, VIP, администрирование и 375/768 px | Изолированная CI-база, не заменяет внешнюю приёмку |
+| k6, авторизованное чтение | 200 целевых RPS, ~199,2 HTTP RPS, p95 13,19 мс, 0% HTTP-ошибок | GET с одной сессией; не 1000 пользователей |
+| k6, создание/отмена | CI #93: 240 циклов и 480 успешных записей, p95 16,92 мс, 0 ошибок/пропусков, до 11 VU | 8 целевых циклов/с, 30 с, изолированная БД; не 100/200 RPS записи |
 | PostgreSQL backup/restore | Сверены количества записей и ограничение пересечений, `RESTORE_TEST_OK` | Восстановление проверено на временной БД, не на резервном сервере |
-| Prometheus / Alertmanager | 3/3 цели `UP`, 5/5 правил `health=ok`, `promtool test rules`: `SUCCESS`; маршрутизация тестового события работает | `null-receiver` не отправляет реальные уведомления |
-| GitHub Actions | Main run #73 после PR #13: `quality` и `docker` Success; 62 pytest, Chromium E2E 9/9 | CI не является доказательством публичного развёртывания |
+| Prometheus / Alertmanager | 3/3 цели `UP`, 5/5 правил проверены; CI валидирует null-receiver и необязательный HTTPS webhook | Реальная доставка требует настроенного адреса получателя |
+| GitHub Actions | PR #16 run #93: `quality` и `docker` Success; 62 pytest, Chromium E2E 21/21, k6 write load, DB/Redis fault recovery | CI не является доказательством публичного развёртывания |
 | GHCR | `ghcr.io/ramig2007/officeflow:latest` опубликован | Пакет **Private**, для скачивания необходим соответствующий доступ |
 
 Подробности и ограничения: [`docs/STATUS.md`](docs/STATUS.md).
@@ -207,6 +208,7 @@ docs/                       матрица ИСП49, архитектура, э�
 9. `docs/RISKS.md` — реестр рисков.
 10. `docs/DEPLOYMENT.md` — инструкция VPS/HTTPS.
 11. `docs/FINAL_READINESS_2026-11-20.md` — актуальная оценка готовности.
+12. `docs/VERIFICATION_2026-11-21.md` — подтверждённые результаты CI #93, 21 E2E, k6 и отказоустойчивости readiness.
 
 ### Оговорки для защиты
 
