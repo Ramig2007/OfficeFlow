@@ -52,6 +52,7 @@ required = [
     "infra/uptime/officeflow-uptime-probe.service",
     "infra/uptime/officeflow-uptime-probe.timer",
     "docs/SCALE_VALIDATION.md", "docs/UPTIME_MONITORING.md",
+    ".github/workflows/scale-validation.yml",
 ]
 for rel in required:
     if not (ROOT / rel).is_file():
