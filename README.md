@@ -2,13 +2,13 @@
 
 **OfficeFlow** — учебное веб-приложение для бронирования переговорных, построенное вокруг недельного расписания. Отдельный проект, не основанный на MeetingRoomBooking. Язык интерфейса: русский. Стек: Django 5.2 LTS, PostgreSQL, Redis, Django REST Framework, Nginx, Caddy (production TLS), Docker Compose, Prometheus, Grafana.
 
-> **Статус на 21.11.2026:** PR #18 объединён в `main` (merge commit `3910bfd`). PR CI run #117: **quality и docker — Success**, Chromium **27/27** (включая регистрацию, logout, роли и CSV с фильтрами), PostgreSQL **INDEPENDENT_RESTORE_OK** в другом изолированном контейнере. Ранее CI #106 подтвердил 1000 независимых синтетических сессий, 3750 циклов create/edit/cancel (11 250 записей, p95 10,40 мс, 0 ошибок), а также 68 pytest passed и покрытие двух критических модулей 91,67%. Детали: `docs/PILOT.md`, `docs/BACKUP_VALIDATION.md`, `docs/SCALE_RESULTS_2026-11-21.md`. Публичного VPS, подтверждённого SLA 99,9% и off-host backup пока нет; GHCR package остаётся Private.
+> **Статус на 21.11.2026:** PR #19 объединён в `main` (commit `5d27402`). **CI #128: quality/docker Success, 77 pytest passed**, покрытие двух критических модулей 91,67%, Render Docker image собран, production-настройки проверены, Chromium 27/27 и independent PostgreSQL restore успешно повторены. Подготовлен бесплатный деплой **Render Free + Neon Free**: `render.yaml`, `Dockerfile.render`, отдельная конфигурация Django с TLS, WhiteNoise, bootstrap admin и инструкцией `docs/RENDER_NEON_DEPLOYMENT.md`. **Реальный Render/Neon-сервис ещё не создан и не проверен**, SLA 99,9% не подтверждён. Ранее CI #106: 1000 независимых синтетических сессий, 3750 create/edit/cancel циклов (11 250 успешных записей), p95 10,40 мс, 0 HTTP-ошибок. GHCR остаётся Private.
 
 ## Подтверждённые результаты испытаний — по 21.11.2026
 
 | Проверка | Фактический результат | Ограничение |
 |---|---|---|
-| Django / pytest | **68 passed** в PR CI #106 | Покрытие в CI измеряется только для `workspace.services` и `workspace.queries` |
+| Django / pytest | **77 passed** в PR CI #128 | Покрытие в CI измеряется только для `workspace.services` и `workspace.queries` |
 | Покрытие критических модулей | 91,67% в CI (требование ≥70%) | Не равно покрытию всей системы |
 | Playwright E2E | **27/27** в CI #117, включая бронирования, VIP, роли, регистрацию, logout, CSV и 375/768 px | Изолированная CI-база, не заменяет независимую ручную приёмку |
 | k6, авторизованное чтение | 200 целевых RPS, ~199,2 HTTP RPS, p95 13,19 мс, 0% HTTP-ошибок | GET с одной сессией; не 1000 пользователей |
@@ -16,7 +16,7 @@
 | k6, 1000 пользователей | **1000/1000** успешных логинов, пик **1000 VU**, 41 299 HTTP запросов, 0 HTTP ошибок, p95 **6,91 мс** | CI #106, ramp-up/3 мин удержания; не 1000 HTTP-запросов одновременно и не тест production VPS |
 | PostgreSQL backup/restore | **INDEPENDENT_RESTORE_OK**, SHA-256, counts и GiST constraint в отдельном контейнере PostgreSQL, CI #117 | Тот же Docker-хост, off-host копии нет |
 | Prometheus / Alertmanager | 3/3 цели `UP`, 5/5 правил проверены; CI валидирует null-receiver и необязательный HTTPS webhook | Реальная доставка требует настроенного адреса получателя |
-| GitHub Actions | CI #106: `quality`, `docker`, `scale-validation` Success; CI #117: `quality`, `docker` Success, Chromium 27/27 и независимый restore | CI не является доказательством публичного развёртывания или SLA |
+| GitHub Actions | CI #106 (нагрузка), #117 (Chromium и DR), #128 (Render Docker/settings) — Success | CI не является доказательством реального размещения на Render/Neon или SLA |
 | GHCR | `ghcr.io/ramig2007/officeflow:latest` опубликован | Пакет **Private**, для скачивания необходим соответствующий доступ |
 
 Подробности и ограничения: [`docs/STATUS.md`](docs/STATUS.md).
