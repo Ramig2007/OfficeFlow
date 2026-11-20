@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: officeflow-scale-\${{ github.ref }}
+  group: officeflow-scale-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -87,7 +87,7 @@ jobs:
             --summary-export=/results/1000-users-summary.json \
             /scripts/loadtest-1000-users.js \
             2>&1 | tee "$RUNNER_TEMP/officeflow-scale-results/1000-users.log"
-          capacity_status=\${PIPESTATUS[0]}
+          capacity_status=${PIPESTATUS[0]}
 
           docker run --rm --network officeflow_internal \
             -e BASE_URL=http://proxy \
@@ -99,7 +99,7 @@ jobs:
             --summary-export=/results/booking-create-edit-cancel-summary.json \
             /scripts/loadtest-booking-create-edit-cancel.js \
             2>&1 | tee "$RUNNER_TEMP/officeflow-scale-results/booking-create-edit-cancel.log"
-          write_status=\${PIPESTATUS[0]}
+          write_status=${PIPESTATUS[0]}
 
           kill "$stats_pid" 2>/dev/null || true
           wait "$stats_pid" 2>/dev/null || true
@@ -118,7 +118,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: officeflow-scale-validation
-          path: \${{ runner.temp }}/officeflow-scale-results/
+          path: ${{ runner.temp }}/officeflow-scale-results/
           if-no-files-found: warn
           retention-days: 90
 
@@ -129,8 +129,9 @@ jobs:
       - name: Require both scale tests to pass
         if: always()
         env:
-          PREPARE_OUTCOME: \${{ steps.prep.outcome }}
-          SCALE_OUTCOME: \${{ steps.scale_tests.outcome }}
+          PREPARE_OUTCOME: ${{ steps.prep.outcome }}
+          SEED_OUTCOME: ${{ steps.seed.outcome }}
+          SCALE_OUTCOME: ${{ steps.scale_tests.outcome }}
         run: |
           if [[ "$PREPARE_OUTCOME" != "success" || "$SEED_OUTCOME" != "success" || "$SCALE_OUTCOME" != "success" ]]; then
             echo "Scale validation did not complete successfully; inspect the uploaded artifact."
