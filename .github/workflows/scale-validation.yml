@@ -96,14 +96,28 @@ jobs:
             2>&1 | tee "$RUNNER_TEMP/officeflow-scale-results/booking-create-edit-cancel.log"
           write_status=${PIPESTATUS[0]}
 
+          docker run --rm --network officeflow_internal \
+            -e BASE_URL=http://proxy \
+            -e K6_PASSWORD="$DEMO_PASSWORD" \
+            -e K6_ROOM_ID="$room_id" \
+            -e TARGET_CYCLES_PER_SECOND=25 \
+            -e DURATION=3m \
+            -v "$PWD/scripts/loadtest-mixed-100-rps.js:/scripts/loadtest-mixed-100-rps.js:ro" \
+            -v "$RUNNER_TEMP/officeflow-scale-results:/results" \
+            grafana/k6:0.52.0 run \
+            --summary-export=/results/mixed-100-rps-summary.json \
+            /scripts/loadtest-mixed-100-rps.js \
+            2>&1 | tee "$RUNNER_TEMP/officeflow-scale-results/mixed-100-rps.log"
+          mixed_status=${PIPESTATUS[0]}
+
           kill "$stats_pid" 2>/dev/null || true
           wait "$stats_pid" 2>/dev/null || true
-          printf 'capacity_exit_code=%s\nwrite_edit_exit_code=%s\n' \
-            "$capacity_status" "$write_status" \
+          printf 'capacity_exit_code=%s\nwrite_edit_exit_code=%s\nmixed_100_rps_exit_code=%s\n' \
+            "$capacity_status" "$write_status" "$mixed_status" \
             > "$RUNNER_TEMP/officeflow-scale-results/exit-codes.txt"
 
           set -e
-          if [[ "$capacity_status" -ne 0 || "$write_status" -ne 0 ]]; then
+          if [[ "$capacity_status" -ne 0 || "$write_status" -ne 0 || "$mixed_status" -ne 0 ]]; then
             echo "One or more scale tests did not meet their k6 thresholds."
             exit 1
           fi
