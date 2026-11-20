@@ -57,6 +57,7 @@ def run() -> int:
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     steps: list[str] = []
     manager_context = None
+    signup_context = None
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
@@ -248,6 +249,76 @@ def run() -> int:
             steps.append("Manager deactivates a room without deleting booking history")
             print("PASS 21: room deactivate")
 
+            # Exercise filtered CSV export through the real report page and session.
+            open_ok(manager_page, "/reports/")
+            manager_page.locator('input[name="from"]').fill(test_day.isoformat())
+            manager_page.locator('input[name="to"]').fill(test_day.isoformat())
+            manager_page.locator('select[name="room"]').select_option(label="Маяк")
+            manager_page.get_by_role("button", name="Применить").click()
+            assert "room=" in manager_page.url and "from=" in manager_page.url
+            csv_href = manager_page.locator('a[href*="/reports/export.csv"]').get_attribute("href")
+            assert csv_href is not None, "Filtered CSV download link is missing"
+            csv_response = manager_context.request.get(f"{BASE_URL}{csv_href}")
+            assert csv_response.status == 200, f"Filtered CSV: {csv_response.status}"
+            assert "text/csv" in csv_response.headers.get("content-type", "")
+            assert edited_title in csv_response.text(), "Filtered export omitted the expected booking"
+            steps.append("Manager exports filtered CSV including the edited booking")
+            print("PASS 22: filtered CSV export")
+
+            # Register a new disposable account, exercise role assignment and log out.
+            signup_username = f"ci_{token}"
+            signup_context = browser.new_context(
+                viewport={"width": 1440, "height": 900},
+                locale="ru-RU",
+            )
+            signup_page = signup_context.new_page()
+            register_response = signup_page.goto(f"{BASE_URL}/accounts/register/", wait_until="domcontentloaded")
+            assert register_response is not None and register_response.status == 200
+            signup_page.locator('input[name="username"]').fill(signup_username)
+            signup_page.locator('input[name="first_name"]').fill("CI Employee")
+            signup_page.locator('input[name="email"]').fill(f"{signup_username}@example.test")
+            signup_page.locator('input[name="password1"]').fill(PASSWORD)
+            signup_page.locator('input[name="password2"]').fill(PASSWORD)
+            signup_page.get_by_role("button", name="Зарегистрироваться").click()
+            signup_page.locator(".app-shell").wait_for(timeout=15000)
+            assert signup_page.url.rstrip("/") == BASE_URL, "Registration did not log in the user"
+            signup_page.screenshot(path=str(ARTIFACTS / "new-user-dashboard.png"), full_page=True)
+            steps.append("New employee registers and is authenticated via the real HTML form")
+            print("PASS 23: employee registration")
+
+            denied = signup_context.request.get(f"{BASE_URL}/control/users/")
+            assert denied.status == 403, f"New employee unexpectedly has admin access: {denied.status}"
+            steps.append("Newly registered member is denied access to user administration")
+            print("PASS 24: new account permissions")
+
+            open_ok(manager_page, "/control/users/")
+            member_row = manager_page.locator("tr", has_text=f"@{signup_username}")
+            member_row.locator('select[name="role"]').select_option("admin")
+            member_row.get_by_role("button", name="Сохранить").click()
+            open_ok(manager_page, "/control/users/")
+            assert "Администратор" in manager_page.locator("tr", has_text=f"@{signup_username}").inner_text()
+            elevated = signup_context.request.get(f"{BASE_URL}/control/users/")
+            assert elevated.status == 200, "Promoted user cannot access admin page"
+            steps.append("Administrator promotes a new employee and role takes effect")
+            print("PASS 25: role promotion")
+
+            member_row = manager_page.locator("tr", has_text=f"@{signup_username}")
+            member_row.locator('select[name="role"]').select_option("member")
+            member_row.get_by_role("button", name="Сохранить").click()
+            open_ok(manager_page, "/control/users/")
+            assert "Сотрудник" in manager_page.locator("tr", has_text=f"@{signup_username}").inner_text()
+            denied_again = signup_context.request.get(f"{BASE_URL}/control/users/")
+            assert denied_again.status == 403, "Revoked user still has administrative privileges"
+            steps.append("Administrator revokes a role and access is immediately denied")
+            print("PASS 26: role revocation")
+
+            signup_page.get_by_role("button", name="Выйти").click()
+            signup_page.wait_for_url("**/accounts/login/", timeout=15000)
+            signup_page.goto(f"{BASE_URL}/my-bookings/", wait_until="domcontentloaded")
+            assert "/accounts/login/" in signup_page.url, "Logout did not revoke the browser session"
+            steps.append("New employee logs out and protected pages require login again")
+            print("PASS 27: session logout")
+
             print(f"RESULT: {len(steps)}/{len(steps)} browser acceptance checks passed")
             print(
                 "Disposable CI data only: one standard booking was edited and cancelled; "
@@ -263,6 +334,8 @@ def run() -> int:
             print("Failure screenshot (if available): /tests/artifacts/failure.png", file=sys.stderr)
             return 1
         finally:
+            if signup_context is not None:
+                signup_context.close()
             if manager_context is not None:
                 manager_context.close()
             context.close()
