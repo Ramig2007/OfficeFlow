@@ -1,11 +1,15 @@
 name: OfficeFlow CI
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -35,19 +39,44 @@ jobs:
       DB_PORT: "5432"
       REDIS_URL: redis://localhost:6379/1
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: {python-version: '3.12'}
-      - run: pip install -r requirements-dev.txt
-      - run: ruff check .
-      - run: python manage.py check
-      - run: python manage.py makemigrations --check --dry-run
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install development dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Ruff lint
+        run: ruff check .
+      - name: Bandit security scan
+        run: bandit -q -r workspace -x workspace/migrations,workspace/tests
+      - name: Static project structure audit
+        run: python scripts/static_audit.py
+      - name: Django checks
+        run: python manage.py check
+      - name: Django production security checks
+        env:
+          DEBUG: "0"
+          SECRET_KEY: "ci-only-production-check-key-0123456789-abcdef-0123456789-abcdef"
+          ALLOWED_HOSTS: officeflow.example.test
+          CSRF_TRUSTED_ORIGINS: https://officeflow.example.test
+          COOKIE_SECURE: "1"
+          SECURE_SSL_REDIRECT: "1"
+          SECURE_HSTS_SECONDS: "31536000"
+        run: python manage.py check --deploy
+      - name: Check migrations
+        run: python manage.py makemigrations --check --dry-run
       - name: Collect static files
         run: python manage.py collectstatic --noinput
-      - run: pytest -q --cov=workspace.services --cov=workspace.queries --cov-report=term-missing --cov-fail-under=70
+      - name: Test suite and critical-module coverage
+        run: pytest -q --cov=workspace.services --cov=workspace.queries --cov-report=term-missing --cov-fail-under=70
       - name: Package source artifact
-        uses: actions/upload-artifact@v4
-        with: {name: officeflow-source, path: '.'}
+        uses: actions/upload-artifact@v6
+        with:
+          name: officeflow-source
+          path: .
+          if-no-files-found: error
+
   docker:
     runs-on: ubuntu-latest
     needs: [quality]
@@ -55,21 +84,38 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - name: Normalize image tag
+      - uses: actions/checkout@v7
+      - name: Prepare production Compose environment
+        run: cp .env.production.example .env
+      - name: Validate production Compose configuration
+        run: docker compose -f compose.yaml -f compose.production.yaml config --quiet
+      - name: Validate Caddy configuration
+        run: |
+          docker run --rm \
+            -e DOMAIN=officeflow.example.test \
+            -v "$PWD/infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.10-alpine \
+            caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Check shell scripts
+        run: |
+          sh -n docker-entrypoint.sh
+          bash -n scripts/backup.sh
+      - uses: docker/setup-buildx-action@v4
+      - name: Normalize image name
         id: image
-        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}:latest" >> "$GITHUB_OUTPUT"
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
       - name: Login to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and (main only) push image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-          tags: ${{ steps.image.outputs.name }}
+          tags: |
+            ${{ steps.image.outputs.name }}:latest
+            ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
