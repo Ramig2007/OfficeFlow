@@ -1,0 +1,19 @@
+[Unit]
+Description=OfficeFlow external HTTPS readiness probe
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+DynamicUser=yes
+StateDirectory=officeflow-uptime
+EnvironmentFile=/etc/officeflow-uptime.env
+ExecStart=/usr/bin/python3 /opt/officeflow-monitor/uptime_probe.py --log-file /var/lib/officeflow-uptime/probes.jsonl --timeout 10
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/officeflow-uptime
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
