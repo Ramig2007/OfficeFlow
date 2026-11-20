@@ -32,7 +32,7 @@ docker compose exec db pg_isready -U officeflow -d officeflow
 - `GET /health/ready/`: проверяет `SELECT 1` в основной БД и set/get Redis cache. При сбое возвращает HTTP 503.
 - Prometheus собирает `django_http_*` HTTP counters и histogram; PostgreSQL/Redis exporters собирают состояние зависимостей.
 - Grafana: папка OfficeFlow, панель Reliability; проверять метрики RPS, p95, 5xx rate, availability.
-- Prometheus alert rules созданы, но локальный Alertmanager использует **null-receiver**. Для получения инцидентов назначьте реальный webhook/email receiver и проверьте доставку. Без этого алерты не сообщают людям.
+- Prometheus alert rules проверены. Alertmanager по умолчанию использует **null-receiver**. Для доставки внешнему HTTPS webhook задайте в серверном `.env` переменную `ALERTMANAGER_WEBHOOK_URL`, при необходимости `ALERTMANAGER_WEBHOOK_BEARER_TOKEN`, затем выполните `docker compose --profile observability up -d alertmanager-config alertmanager`. CI #93 проверил синтаксис обоих вариантов конфигурации. До настройки реального endpoint доставка **не подтверждена**; секреты нельзя записывать в Git.
 
 ## Backup policy
 
@@ -90,4 +90,4 @@ bash scripts/test-restore.sh backups/officeflow-YYYYMMDDTHHMMSSZ.dump
 
 ## Ограничения демонстрационного стенда
 
-Compose использует одну PostgreSQL, одну Redis, один Django контейнер, локальный Nginx с HTTP, Prometheus/Grafana без внешней аутентификации (порты ограничены loopback) и Alertmanager без реальной доставки. Это не HA-кластер. Не публиковать в Интернет без TLS, firewall, секретов, обновлений образов и hardening.
+Compose использует одну PostgreSQL, одну Redis, один Django контейнер, локальный Nginx с HTTP, Prometheus/Grafana без внешней аутентификации (порты ограничены loopback) и Alertmanager без реальной доставки **пока не задан** HTTPS webhook. Это не HA-кластер. Не публиковать в Интернет без TLS, firewall, секретов, обновлений образов и hardening.
