@@ -59,14 +59,13 @@ docker compose up -d --build
 
 **Ожидаемый результат:** контейнеры `db`, `redis`, `app`, `proxy` получают состояние `running` / `healthy`. Первая сборка скачивает зависимости и занимает некоторое время. Контейнер приложения ожидает готовность PostgreSQL и Redis.
 
-5. Примените миграции и подготовьте статику:
+5. Примените миграции:
 
 ```powershell
 docker compose exec app python manage.py migrate
-docker compose exec app python manage.py collectstatic --noinput
 ```
 
-**Ожидаемый результат:** `Applying workspace.0001_initial... OK`, `Applying workspace.0002_postgres_overlap_guard... OK`; статические файлы собраны.
+**Ожидаемый результат:** `Applying workspace.0001_initial... OK`, `Applying workspace.0002_postgres_overlap_guard... OK`. Сборка статических файлов выполняется entrypoint приложения при каждом запуске контейнера, поэтому Nginx получает актуальный `staticfiles` volume.
 
 6. Создайте демонстрационные комнаты и тестовые аккаунты **только при DEBUG=1**:
 
