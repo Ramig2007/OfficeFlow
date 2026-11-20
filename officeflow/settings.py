@@ -126,6 +126,9 @@ CSRF_COOKIE_SECURE = os.getenv("COOKIE_SECURE", "0") == "1"
 if not DEBUG:
     if len(SECRET_KEY) < 50 or SECRET_KEY.startswith(("REPLACE_", "CHANGE_")):
         raise RuntimeError("Production SECRET_KEY must be a unique random value of at least 50 characters")
+    database_password = os.getenv("DB_PASSWORD", "")
+    if len(database_password) < 24 or database_password.startswith(("REPLACE_", "CHANGE_")):
+        raise RuntimeError("Production DB_PASSWORD must be a unique random value of at least 24 characters")
     if not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS:
         raise RuntimeError("Set explicit production ALLOWED_HOSTS; wildcard hosts are forbidden")
     if all(host in {"localhost", "127.0.0.1", "app", "proxy"} for host in ALLOWED_HOSTS):
