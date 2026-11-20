@@ -2,8 +2,8 @@
 
 **Дата проверки:** 20 ноября 2026 г.  
 **Репозиторий:** https://github.com/Ramig2007/OfficeFlow  
-**Основная ветка:** `main`; PR #8, #9, #10 и #12 (ограничение данных общего API расписания) объединены.  
-**Подтверждённый полный CI:** main run #63 для commit `8c1a71c` — jobs `quality` и `docker` Success. Дополнительно PR run #66 проверил исправление приватности #12: оба job (`quality`, `docker`) завершились Success до merge commit `6a9fe11`. Runs #41–#51 были отменены concurrency при последовательных обновлениях; runs #58, #61 и #63 после этого завершились успешно.  
+**Основная ветка:** `main`; PR #8, #9, #10, #12 и #13 объединены. PR #13 — commit `1ee676b`.  
+**Последний полный CI:** main run #73 для commit `1ee676b` завершился Success в обоих jobs (`quality`, `docker`): 62 pytest passed, coverage 91,67%, Chromium E2E 9/9. 
 **Назначение:** учебная сдача ИСП49 и подготовка к последующему VPS-развёртыванию. Это не заключение о промышленной готовности.
 
 ## 1. Подтверждённое состояние
@@ -11,11 +11,11 @@
 | Область | Подтверждённый факт | Ограничение |
 |---|---|---|
 | Репозиторий | Публичный GitHub source repo | GHCR package Private |
-| CI | Main run #63: quality + docker Success; PR run #66: quality + docker Success | Run #63 проверяет main до PR #12; run #66 проверяет privacy fix до merge |
+| CI | Main run #73: quality + docker Success | Подтверждает состояние main после PR #13; включает browser smoke 9/9 |
 | Docker runtime | Compose stack стартовал в CI, миграции применились, readiness 200, CSS отдался через Nginx | Ephemeral GitHub runner, не публичный сервер |
-| Django tests | 60/60 в локальном прогоне | Не считать это покрытием всех возможных сценариев |
+| Django tests | 60/60 в локальном прогоне пользователя; 62 passed в main CI run #73 | Не считать это покрытием всех возможных сценариев |
 | Coverage | 91,67% для `workspace.services` и `workspace.queries` | Не покрытие всего репозитория |
-| Browser E2E | Playwright Chromium 9/9 | Read-only smoke |
+| Browser E2E | Playwright Chromium 9/9 локально и в main CI run #73; screenshots artifact uploaded | Read-only smoke |
 | User acceptance | 8/8 сценариев — УСПЕХ | Один пользователь, локальный стенд |
 | k6 | 200 RPS read-only, ~199,2 HTTP req/s, p95=13,19 мс, 0% HTTP errors, 30 секунд | Одна сессия, GET only |
 | Backup/restore | `RESTORE_TEST_OK`, counts совпали, GiST constraint проверен | Restore в том же PostgreSQL контейнере |
@@ -23,6 +23,7 @@
 | API privacy | Общий schedule API ограничен календарными полями; тест подтверждает отсутствие внутренних заметок и данных владельца | PR #12; CI run #66 прошёл до merge |
 | Production settings | HSTS, HTTPS redirect, secure cookies, explicit host/CSRF checks, fail-fast guards | Требуется настоящий домен и VPS |
 | Backup tooling | Linux backup и temporary restore scripts добавлены | На VPS ещё не выполнялись |
+| Demo fixtures | Новые demo-аккаунты получают заданный пароль; повторный seed сохраняет существующий пароль | PR #13; regression tests в main CI run #73 |
 
 ## 2. Что уже находится в main
 
@@ -33,8 +34,9 @@ Production-readiness изменения объединены в основную
 - сбор статики при старте контейнера;
 - исправлен `STATIC_URL=/static/`; CI проверяет фактическую отдачу CSS через Nginx;
 - Linux backup и full restore verification во временной БД;
-- усиленный CI: Ruff, Bandit, static audit, Django deploy checks, migrations, collectstatic, pytest, Compose/Caddy validation, shell syntax, Docker runtime smoke;
+- усиленный CI: Ruff, Bandit, static audit, Django deploy checks, migrations, collectstatic, pytest, Compose/Caddy validation, shell syntax, Docker runtime smoke и Playwright Chromium browser smoke с артефактами;
 - ограничение состава данных общего API расписания отдельным сериализатором и регрессионным тестом приватности (PR #12);
+- автоматический Playwright Chromium smoke в Docker CI, загрузка скриншотов и исправление инициализации demo-паролей (PR #13);
 - GHCR tags `latest` и commit SHA;
 - Dependabot для pip и GitHub Actions;
 - обновлены README, STATUS, TESTING, PILOT, REQUIREMENTS, DEPLOYMENT и readiness records.
