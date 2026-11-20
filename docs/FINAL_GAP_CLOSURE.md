@@ -8,7 +8,7 @@
 
 | Изменение | Файлы | Что доказывает | Статус |
 |---|---|---|---|
-| Смешанный нагрузочный профиль | `scripts/loadtest-booking-create-edit-cancel.js` | 1 GET + create/edit/cancel на итерацию; пик 25 итераций/с = 100 HTTP RPS; thresholds p95<200 мс и errors<0,1% | Встроено в существующий scale CI; результат текущего PR ещё ожидает запуска |
+| Смешанный нагрузочный профиль | `scripts/loadtest-mixed-100-rps.js` | 1 GET + create/edit/cancel на итерацию; пик 25 итераций/с = 100 HTTP RPS; thresholds p95<200 мс и errors<0,1% | Встроено в существующий scale CI; результат текущего PR ещё ожидает запуска |
 | Unit tests Alertmanager | `workspace/tests/test_alertmanager_config.py` | HTTPS-only webhook, Bearer token, null receiver, reject malformed/insecure URLs | Добавлено; ожидает CI |
 | Off-site backup | `scripts/backup-offsite.sh` | Backup + SHA-256, upload в S3 с SSE-S3/SSE-KMS, скачивание и повторная проверка checksum | Код добавлен; реальный bucket/IAM не настроен |
 | Расписание off-site backup | `infra/backup/officeflow-backup.service`, `officeflow-backup.timer` | Ежедневный systemd запуск | Unit-файлы добавлены; не активированы на сервере |
