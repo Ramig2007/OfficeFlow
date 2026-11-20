@@ -58,6 +58,7 @@ jobs:
         env:
           DEBUG: "0"
           SECRET_KEY: "ci-only-production-check-key-0123456789-abcdef-0123456789-abcdef"
+          DB_PASSWORD: "ci-only-production-database-password-0123456789"
           ALLOWED_HOSTS: officeflow.example.test
           CSRF_TRUSTED_ORIGINS: https://officeflow.example.test
           COOKIE_SECURE: "1"
