@@ -33,7 +33,7 @@ mv "$TEMP" "$TARGET"
 echo "Verifying PostgreSQL archive..."
 docker compose cp "$TARGET" "db:$VERIFY_PATH" >/dev/null
 docker compose exec -T db pg_restore --list "$VERIFY_PATH" >/dev/null
-sha256sum "$TARGET" > "$TARGET.sha256"
+(cd "$BACKUP_DIR" && sha256sum "$(basename -- "$TARGET")" > "$(basename -- "$TARGET").sha256")
 
 echo "Backup created and verified: $TARGET"
 cat "$TARGET.sha256"
