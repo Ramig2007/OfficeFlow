@@ -29,7 +29,7 @@
 - Резервное копирование и восстановление PostgreSQL: восстановление во временную БД выполнено успешно; числа записей совпали, проверено ограничение от пересекающихся броней.
 - Prometheus: три источника метрик в состоянии `up`; 5 правил проверены `promtool test rules` (`SUCCESS`).
 - Alertmanager: тестовый алерт принят и маршрутизирован в `null-receiver` (реальная доставка сообщений не настроена).
-- GitHub Actions: PR #1 и PR #8 объединены. Main run #63 для commit `8c1a71c` (`quality` и `docker`) прошёл полностью. Docker job включает runtime Compose smoke со статикой через Nginx. Main runs #58, #61 и #63 прошли полностью; runs #41–#51 были отменены concurrency при последовательных обновлениях.
+- GitHub Actions: PR #1, #8, #9, #10 и #12 объединены. Main run #63 для commit `8c1a71c` (`quality` и `docker`) прошёл полностью. PR run #66 для исправления приватности schedule API также завершился успешно в обоих jobs до merge commit `6a9fe11`. Docker job включает runtime Compose smoke со статикой через Nginx. Main runs #58, #61 и #63 прошли полностью; runs #41–#51 были отменены concurrency при последовательных обновлениях.
 
 ## Ограничения выводов
 
