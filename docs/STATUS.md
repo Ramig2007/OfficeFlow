@@ -24,7 +24,7 @@ Docker job run #58 включал полный временный Compose smoke-
 | Backup/restore | `RESTORE_TEST_OK`, counts совпали, GiST constraint проверен | Временная БД в том же PostgreSQL-контейнере |
 | Мониторинг | Prometheus 3/3 targets UP; 5 правил проверены | Alertmanager `null-receiver`, реальные уведомления не доставляются |
 | CI quality | Ruff, Bandit, static audit, Django checks, deploy checks, migrations, collectstatic, pytest | Run #58 Success |
-| CI Docker | Compose/Caddy config, shell syntax, image build/push, runtime smoke | Run #52 Success |
+| CI Docker | Compose/Caddy config, shell syntax, image build/push, runtime smoke | Run #58 Success |
 | Production config | Caddy HTTPS overlay, secure Django settings, backup/restore scripts | В main; реальный VPS ещё не развёрнут |
 
 Подробные записи: `docs/USER_ACCEPTANCE_2026-11-19.md`, `docs/E2E_BROWSER_RUN.md`, `docs/LOADTEST_RESULTS_2026-11-19.md`, `docs/BACKUP_VALIDATION.md`, `docs/TESTING.md`.
