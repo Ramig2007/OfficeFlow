@@ -188,7 +188,7 @@ workspace/tests/            unit + integration + permission + concurrency tests
 e2e/                        браузерный сценарий Playwright
 templates/                  страницы и авторизация
 static/                     оригинальная светлая дизайн-система
-infra/                      Nginx, Prometheus, Grafana, Alertmanager
+infra/                      Nginx, Caddy, Prometheus, Grafana, Alertmanager
 scripts/                    PowerShell backup/restore, k6
 .github/workflows/          CI и публикация Docker image в GHCR
 docs/                       матрица ИСП49, архитектура, эксплуатация, риски
