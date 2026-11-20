@@ -30,7 +30,7 @@
 11. Docker image build; push в GHCR выполняется только при push в `main`, с тегами `latest` и `sha-<commit>`;
 12. Runtime Compose smoke: app startup, migrations, readiness endpoint и фактическая отдача hashed CSS через Nginx.
 
-На PR #1 `Prepare OfficeFlow for secure VPS hosting` GitHub Actions run #6 завершился успешно: jobs `quality` и `docker` — Success. Это проверяет CI и Docker build, но не выполняет публичный deploy.
+После merge PR #1 GitHub Actions run #40 завершился успешно: jobs `quality` и `docker` — Success. Docker job собрал и опубликовал образ, запустил Compose stack, применил миграции, проверил readiness и отдачу CSS через Nginx. Это проверяет контейнерный runtime в ephemeral CI, но не выполняет публичный VPS deploy.
 
 ## Unit и integration tests
 
