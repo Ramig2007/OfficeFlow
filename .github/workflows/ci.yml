@@ -134,6 +134,7 @@ jobs:
           sh -n docker-entrypoint.sh
           bash -n scripts/backup.sh
           bash -n scripts/test-restore.sh
+          bash -n scripts/test-restore-independent.sh
       - uses: docker/setup-buildx-action@v4
       - name: Normalize image name
         id: image
@@ -231,6 +232,14 @@ jobs:
           path: ${{ runner.temp }}/officeflow-e2e-artifacts/
           if-no-files-found: ignore
           retention-days: 7
+      - name: Verify independent PostgreSQL backup and restore
+        run: |
+          export BACKUP_DIR="$RUNNER_TEMP/officeflow-independent-dr"
+          trap 'rm -rf "$BACKUP_DIR"' EXIT
+          bash scripts/backup.sh
+          dump="$(find "$BACKUP_DIR" -maxdepth 1 -type f -name '*.dump' -print -quit)"
+          test -n "$dump"
+          bash scripts/test-restore-independent.sh "$dump"
       - name: Exercise database and Redis failure recovery
         run: |
           wait_for_readiness() {
