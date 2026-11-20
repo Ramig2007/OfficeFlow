@@ -4,7 +4,7 @@ from threading import Barrier
 
 import pytest
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import close_old_connections, connection
+from django.db import connection, connections
 
 from workspace.models import AuditEvent, Booking
 from workspace.services import (
@@ -170,15 +170,17 @@ def test_concurrent_booking_only_one_wins():
     barrier = Barrier(2)
 
     def do_booking(user):
-        close_old_connections()
-        barrier.wait(timeout=10)
+        # Each worker owns a thread-local Django connection. Close it explicitly
+        # before and after the concurrent operation so pytest can drop its DB.
+        connections.close_all()
         try:
+            barrier.wait(timeout=10)
             create_booking(actor=user, room_id=room.pk, title="Синхронная бронь", notes="", starts_at=start, ends_at=start + timedelta(hours=1))
             return "created"
         except BookingConflict:
             return "conflict"
         finally:
-            close_old_connections()
+            connections.close_all()
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         futures = [pool.submit(do_booking, user) for user in users]
