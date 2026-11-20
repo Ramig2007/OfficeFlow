@@ -2,8 +2,8 @@
 
 **Дата проверки:** 20 ноября 2026 г.  
 **Репозиторий:** https://github.com/Ramig2007/OfficeFlow  
-**Основная ветка:** `main`; PR #8, #9 и #10 (readiness-документация, cleanup конкурентного теста и OpenAPI-схемы) объединены.  
-**Подтверждённый полный CI:** GitHub Actions run #63 для main commit `8c1a71c` — jobs `quality` и `docker` Success. Runs #41–#51 были отменены concurrency при последовательных обновлениях; runs #58, #61 и #63 после этого завершились успешно.  
+**Основная ветка:** `main`; PR #8, #9, #10 и #12 (ограничение данных общего API расписания) объединены.  
+**Подтверждённый полный CI:** main run #63 для commit `8c1a71c` — jobs `quality` и `docker` Success. Дополнительно PR run #66 проверил исправление приватности #12: оба job (`quality`, `docker`) завершились Success до merge commit `6a9fe11`. Runs #41–#51 были отменены concurrency при последовательных обновлениях; runs #58, #61 и #63 после этого завершились успешно.  
 **Назначение:** учебная сдача ИСП49 и подготовка к последующему VPS-развёртыванию. Это не заключение о промышленной готовности.
 
 ## 1. Подтверждённое состояние
@@ -20,6 +20,7 @@
 | k6 | 200 RPS read-only, ~199,2 HTTP req/s, p95=13,19 мс, 0% HTTP errors, 30 секунд | Одна сессия, GET only |
 | Backup/restore | `RESTORE_TEST_OK`, counts совпали, GiST constraint проверен | Restore в том же PostgreSQL контейнере |
 | Monitoring | Prometheus targets 3/3 UP, 5 rules validated | Alertmanager null receiver |
+| API privacy | Общий schedule API ограничен календарными полями; тест подтверждает отсутствие внутренних заметок и данных владельца | PR #12; CI run #66 прошёл до merge |
 | Production settings | HSTS, HTTPS redirect, secure cookies, explicit host/CSRF checks, fail-fast guards | Требуется настоящий домен и VPS |
 | Backup tooling | Linux backup и temporary restore scripts добавлены | На VPS ещё не выполнялись |
 
@@ -33,6 +34,7 @@ Production-readiness изменения объединены в основную
 - исправлен `STATIC_URL=/static/`; CI проверяет фактическую отдачу CSS через Nginx;
 - Linux backup и full restore verification во временной БД;
 - усиленный CI: Ruff, Bandit, static audit, Django deploy checks, migrations, collectstatic, pytest, Compose/Caddy validation, shell syntax, Docker runtime smoke;
+- ограничение состава данных общего API расписания отдельным сериализатором и регрессионным тестом приватности (PR #12);
 - GHCR tags `latest` и commit SHA;
 - Dependabot для pip и GitHub Actions;
 - обновлены README, STATUS, TESTING, PILOT, REQUIREMENTS, DEPLOYMENT и readiness records.
@@ -41,7 +43,7 @@ Production-readiness изменения объединены в основную
 
 | Приоритет | Задача | Что требуется |
 |---|---|---|
-| P0 | Новый полный CI | Дождаться успешных jobs quality и docker для актуального коммита после PR |
+| P0 | CI для исправления приватности API | PR run #66: jobs quality и docker Success; исправление объединено в `main` commit `6a9fe11` |
 | P1 | Итоговый отчёт | Подготовить Word-документ, вставить фактические скриншоты интерфейса и доказательства CI/тестов |
 | P1 | Формальная приёмка | Указать проверяющего/ответственного и получить подпись или согласование, если требует преподаватель |
 | P1 | Реальный хостинг | Нужны VPS, домен/DNS и доступ администратора; затем выполнить deploy |
@@ -67,6 +69,6 @@ Production-readiness изменения объединены в основную
 
 ## 5. Итог
 
-На имеющихся доказательствах OfficeFlow готов к учебной демонстрации ключевых пользовательских функций на локальном Docker-стенде. CI проверяет Django, безопасность, production-конфигурацию и фактический запуск контейнерного стека со статическими файлами. Production-конфигурация подготовлена и объединена в main.
+На имеющихся доказательствах OfficeFlow готов к учебной демонстрации ключевых пользовательских функций на локальном Docker-стенде. CI проверяет Django, безопасность, production-конфигурацию и фактический запуск контейнерного стека со статическими файлами. Дополнительное исправление приватности API расписания прошло оба CI job и объединено в `main`.
 
 **Не заявлять** доказанный SLA 99,9%, работу при 1000 одновременных пользователях, производительность записи под нагрузкой или промышленную готовность до соответствующих измерений и эксплуатации.
