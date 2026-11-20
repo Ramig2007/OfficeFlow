@@ -51,7 +51,7 @@
 | 3.1 | Таблица компонент/назначение/обоснование | `CAPACITY.md` | документация |
 | 3.2 | CPU/RAM/диск на 1000 пользователей, 100 RPS | формульная оценка `CAPACITY.md` | оценка, не измерение |
 | 3.3 | Отказоустойчивость, репликация | топология и ограничения в `CAPACITY.md` | проектная рекомендация |
-| 3.4 | Backup/restore | `backup.ps1`, `test-restore.ps1`, `backup.sh`, `test-restore.sh`, `test-restore-independent.sh` | CI #117: **INDEPENDENT_RESTORE_OK** в отдельном PostgreSQL контейнере; off-host хранилище и отдельный сервер ещё не проверены |
+| 3.4 | Backup/restore | PowerShell/Linux backup, independent restore, `scripts/backup-offsite.sh`, systemd timer; mock-S3 integrity tests | CI #117: **INDEPENDENT_RESTORE_OK**; off-site upload tooling and tests added in current branch, real bucket/IAM and restore on a separate provider still require setup |
 | 3.5 | Healthcheck | `/health/live/`, `/health/ready/`, Compose checks; app healthy локально | Проверено локально |
 | 3.6 | Бенчмарки и обоснования | `CAPACITY.md`, k6 baseline и `SCALE_RESULTS_2026-11-21.md` | Подтверждены 1000 отдельных синтетических сессий и 3750 create/edit/cancel циклов в PR CI #106; production не измерен |
 
@@ -73,23 +73,23 @@
 | 5.1 | SLA 99,9% / p95≤200 мс / error≤0,1% | `CAPACITY.md`, Prometheus alert rules | цели |
 | 5.2 | Метрики HTTP, ошибки, задержки | `django-prometheus`, Prometheus scrape; target officeflow UP | Проверено локально |
 | 5.3 | Метрики Redis и PostgreSQL | redis_exporter / postgres_exporter; оба targets UP | Проверено локально |
-| 5.4 | Алерты по SLA | `infra/prometheus/alerts.yml`, 5 правил прошли promtool tests | Правила проверены; Alertmanager `null-receiver`, внешняя доставка не настроена |
+| 5.4 | Алерты по SLA | `infra/prometheus/alerts.yml`, 5 правил; renderer HTTPS webhook; added unit tests | Правила и оба шаблона конфигурации проверялись CI; новые unit tests ждут CI. Реальный endpoint/доставка требуют URL и credential владельца |
 | 5.5 | Grafana dashboard | `infra/grafana/dashboards/officeflow.json` | Конфигурация готова; запуск Prometheus/Grafana проверен в локальном observability-стенде |
-| 5.6 | 100–200 RPS стресс-тест | baseline/авторизованное чтение и `scripts/loadtest-booking-create-edit-cancel.js` | Ранее ~199,2 RPS авторизованных GET; дополнительно PR CI #106 — 1000 сессий и ступень ~60 write RPS, но не 100/200 write RPS |
+| 5.6 | 100–200 RPS стресс-тест | `scripts/loadtest-booking-create-edit-cancel.js`: один авторизованный GET + create/edit/cancel на итерацию; пик 25 циклов/с = 100 HTTP RPS | Новый смешанный профиль с p95≤200 мс и error rate≤0,1% включён в существующий scale CI; результат ожидает запуска текущего PR. Ранее подтверждены ~199,2 RPS read-only и ~60 write RPS |
 | 5.7 | Деградация БД и анализ | PR CI #93: PostgreSQL stop→readiness 503→start→readiness 200; аналогично Redis | Автоматический сценарий прошёл; HA/failover БД не доказан |
 
 ## 6. Методики тестирования
 
 | ID | Обязательный пункт | Реализация/результат | Статус |
 |---|---|---|---|
-| 6.1 | Unit бизнес-логики | `test_booking_service.py`, `test_uptime_monitoring.py` | PR CI #106: 68 passed |
+| 6.1 | Unit бизнес-логики | `test_booking_service.py`, `test_uptime_monitoring.py`, `test_alertmanager_config.py`, `test_offsite_backup.py` | Последний подтверждённый CI #128: 77 passed; новые проверки alertmanager и off-site backup добавлены в текущем PR, результат ожидает CI |
 | 6.2 | Integration API + PostgreSQL | `test_http_api.py`, PostgreSQL service в CI | CI quality прошёл успешно |
 | 6.3 | Проверка транзакций/конкурентности | `test_concurrent_booking_only_one_wins` | Запущен в PostgreSQL CI, job прошёл |
 | 6.4 | E2E сценарии | `e2e/browser_smoke.py` (Playwright Chromium), Docker CI | **27/27** browser acceptance в PR CI #117: booking CRUD, VIP, room admin, регистрация/logout, роли, CSV, 375/768 px |
-| 6.5 | Load JMeter/k6 | `scripts/loadtest.js`, `scripts/loadtest-auth-read.js`, 1000 VU и create/edit/cancel k6 | PR CI #106: 1000 отдельных логинов, 3750 жизненных циклов (11 250 записей), все checks успешны |
+| 6.5 | Load JMeter/k6 | `scripts/loadtest.js`, `scripts/loadtest-auth-read.js`, 1000 VU и смешанный k6 create/edit/cancel + read | PR CI #106: 1000 отдельных логинов и 3750 циклов записи. Новый профиль 100 HTTP RPS с p95<200 мс встроен в текущий scale CI; фактический результат ожидает запуска |
 | 6.6 | Статический анализ | Ruff, Bandit, static audit, Django `check`, `check --deploy` и OpenAPI schema validation | PR CI #106 quality Success |
-| 6.7 | ≥70% покрытия | CI gate на `workspace.services` + `workspace.queries` | PR CI #106: 91,67% в двух критических модулях, 68 pytest passed, порог выполнен |
-| 6.8 | Дефект-реестр с приоритетами | `docs/DEFECT_LOG_2026-11-19.md` и `docs/PILOT.md` | Исправления и открытые ограничения задокументированы; формальный issue tracker не обязателен для локального протокола |
+| 6.7 | ≥70% покрытия | CI gate на `workspace.services` + `workspace.queries` | Последний подтверждённый результат: 91,67% и 77 pytest passed в PR CI #128; новые тесты увеличат общее число, но не подменяют модульное coverage |
+| 6.8 | Дефект-реестр с приоритетами | `docs/DEFECT_LOG_2026-11-19.md` — записи с ID, severity, шагами, ожидаемым/фактическим результатом, исправлением и доказательством | Реестр структурирован; открытые эксплуатационные риски отделены от подтверждённых дефектов |
 
 ## 7. Проектная документация
 
@@ -109,12 +109,12 @@
 |---|---|---|---|
 | 8.1 | Демостенд | локальный Docker Compose; альтернативно подготовлены Render Free + Neon Free (`RENDER_NEON_DEPLOYMENT.md`) | Локально проверено; облачный деплой ещё не выполнен |
 | 8.2 | Реалистичные тестовые данные | `seed_demo` создаёт комнаты/встречи и инициализирует пароль новых demo-пользователей из `DEMO_PASSWORD` | Код и regression tests; используется только в DEBUG=1 |
-| 8.3 | Чеклист сценариев | `PILOT.md`, пользовательская приёмка | 8/8 ручных сценариев; полный 18-пунктовый чек-лист частичный |
-| 8.4 | Трекер ошибок (шаги/скриншоты/логи) | `docs/DEFECT_LOG_2026-11-19.md`, E2E artifacts локально; в Word-отчёте предусмотрены 9 мест и инструкция для скриншотов сайта | Реестр есть; фактические скриншоты ещё нужно вставить |
-| 8.5 | Performance/Security/UX | `TESTING.md`, Bandit, Chromium 375/768/1440, k6 1000 VU и create/edit/cancel | Автоматическая часть подтверждена CI #106; нет внешнего DAST и production smoke |
+| 8.3 | Чеклист сценариев | `PILOT.md`, пользовательская приёмка, Chromium CI | 8/8 ручных сценариев и 27/27 браузерных acceptance; независимая приёмка ещё не проведена |
+| 8.4 | Трекер ошибок (шаги/скриншоты/логи) | `docs/DEFECT_LOG_2026-11-19.md`, CI artifacts, E2E screenshots; в Word-отчёте предусмотрены места для скриншотов сайта | Реестр оформлен; фактические скриншоты с локального/публичного интерфейса и подтверждение независимого проверяющего ещё нужны |
+| 8.5 | Performance/Security/UX | `TESTING.md`, Bandit, Chromium 375/768/1440, k6 1000 VU, write и mixed 100 RPS | Предыдущие профили подтверждены; mixed 100 RPS ожидает текущий CI. Внешний DAST и публичный HTTPS smoke требуют размещения |
 | 8.6 | Регрессия после исправлений | pytest, CI, Playwright smoke | Выполнена в заявленном объёме |
-| 8.7 | Отчёт и вывод готовности | `PILOT.md`, `FINAL_READINESS_2026-11-20.md`, обновлённый Word-отчёт OfficeFlow | Отчёт подготовлен; фактические скриншоты и формальное согласование остаются |
+| 8.7 | Отчёт и вывод готовности | `PILOT.md`, `FINAL_READINESS_2026-11-20.md`, `FINAL_GAP_CLOSURE.md`, Word-отчёт OfficeFlow | Техническая основа отчёта подготовлена; скриншоты, публичный URL (если нужен) и формальное согласование остаются |
 
 ## Критерий финального закрытия
 
-Подтверждены локальный Docker-стенд, PostgreSQL concurrency CI, 68 pytest в PR CI #106, 91,67% покрытия двух критических модулей, Chromium acceptance **27/27** в CI #117, 8/8 ручных пользовательских сценариев, краткие read-only тесты, 1000 отдельных синтетических логинов, 3750 полных циклов create/edit/cancel (11 250 операций записи), backup/restore в отдельном PostgreSQL контейнере (CI #117) и защита приватности API расписания. Подробности: `SCALE_RESULTS_2026-11-21.md`. До полной приёмки остаются реальное размещение на Render/Neon и HTTPS smoke (если требуется), off-host backup, проверка доставки алертов, длительное внешнее измерение SLA 99,9%, формальная приёмка, скриншоты и финальный отчёт. 1000 VU доказаны лишь для конкретного профиля на CI runner, а не для production сервера.
+Подтверждены локальный Docker-стенд, PostgreSQL concurrency CI, 77 pytest в PR CI #128, 91,67% покрытия двух критических модулей, Chromium acceptance **27/27** в CI #117, 8/8 ручных пользовательских сценариев, 1000 отдельных синтетических логинов, 3750 циклов create/edit/cancel (11 250 операций записи), independent backup/restore в отдельном PostgreSQL контейнере и защита приватности API расписания. В текущей ветке добавлены unit tests для webhook renderer и S3 backup, off-site backup service/timer и смешанный нагрузочный профиль 100 HTTP RPS; их CI-результат пока не получен. До полной приёмки остаются реальный Render/Neon deploy и HTTPS smoke, создание отдельного S3 bucket и проверка off-site restore, реальный Alertmanager receiver, 30-дневное внешнее измерение доступности, независимая приёмка и фактические скриншоты. 1000 VU и предыдущие нагрузочные профили подтверждены только на CI runner, не на production хосте.
