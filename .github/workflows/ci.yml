@@ -259,3 +259,7 @@ jobs:
       - name: Stop smoke stack
         if: always()
         run: docker compose down -v --remove-orphans
+
+  scale-validation:
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'scale-validation/')
+    uses: ./.github/workflows/scale-validation.yml
