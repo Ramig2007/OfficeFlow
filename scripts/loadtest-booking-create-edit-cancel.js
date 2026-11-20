@@ -1,5 +1,6 @@
-// OfficeFlow: isolated create -> edit -> cancel write workload.
-// Every VU uses its own loadtest account and a disjoint room/time slot.
+// OfficeFlow: mixed authenticated read + booking lifecycle workload.
+// Each iteration performs one HTML read plus create -> edit -> cancel.
+// At the peak 25 lifecycles/s this is 100 HTTP requests/s (25 reads + 75 writes).
 // Run ONLY against a disposable DEBUG=1 database; Compose volumes are destroyed afterwards.
 import http from 'k6/http';
 import { check, sleep } from 'k6';
@@ -138,7 +139,7 @@ export default function () {
     JSON.stringify({
       room: roomId,
       title,
-      notes: 'Disposable create/edit/cancel k6 workload',
+      notes: 'Disposable mixed read/write k6 workload',
       starts_at: startsAt,
       ends_at: endsAt,
     }),
