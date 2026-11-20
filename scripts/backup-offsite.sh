@@ -18,6 +18,7 @@ command -v aws >/dev/null 2>&1 || {
 }
 
 BACKUP_DIR="${BACKUP_DIR:-$ROOT/backups}"
+export BACKUP_DIR
 mkdir -p "$BACKUP_DIR"
 umask 077
 
