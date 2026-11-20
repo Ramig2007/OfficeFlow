@@ -94,6 +94,11 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v7
+      - name: Build Render image and verify production Django settings
+        run: |
+          docker build -f Dockerfile.render -t officeflow-render-ci .
+          docker run --rm --entrypoint python             -e DJANGO_SETTINGS_MODULE=officeflow.settings_render             -e RENDER_EXTERNAL_HOSTNAME=officeflow-ci.onrender.com             -e RENDER_SECRET_KEY=ci-only-render-test-secret-0123456789abcdefghijklmnopqrstuvwxyz             -e NEON_HOST=ep-test.eu-central-1.aws.neon.tech             -e NEON_DATABASE=neondb             -e NEON_USER=neondb_owner             -e NEON_PASSWORD=ci-only-render-neon-password-32chars             officeflow-render-ci manage.py check --deploy
+          docker run --rm --entrypoint python             -e DJANGO_SETTINGS_MODULE=officeflow.settings_render             -e RENDER_EXTERNAL_HOSTNAME=officeflow-ci.onrender.com             -e RENDER_SECRET_KEY=ci-only-render-test-secret-0123456789abcdefghijklmnopqrstuvwxyz             -e NEON_HOST=ep-test.eu-central-1.aws.neon.tech             -e NEON_DATABASE=neondb             -e NEON_USER=neondb_owner             -e NEON_PASSWORD=ci-only-render-neon-password-32chars             officeflow-render-ci manage.py collectstatic --noinput
       - name: Prepare production Compose environment
         run: cp .env.production.example .env
       - name: Validate production Compose configuration
@@ -132,6 +137,7 @@ jobs:
       - name: Check shell scripts
         run: |
           sh -n docker-entrypoint.sh
+          sh -n scripts/render-start.sh
           bash -n scripts/backup.sh
           bash -n scripts/test-restore.sh
           bash -n scripts/test-restore-independent.sh
