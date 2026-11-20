@@ -57,7 +57,7 @@
 
 ### Новый смешанный нагрузочный профиль
 
-В текущей ветке `scale-validation/final-gap-closure` обновлён существующий `scripts/loadtest-booking-create-edit-cancel.js`, который уже вызывается `scale-validation.yml`.
+В текущей ветке `scale-validation/final-gap-closure` обновлён новый `scripts/loadtest-mixed-100-rps.js`, который уже вызывается `scale-validation.yml`.
 
 Одна итерация выполняет один авторизованный HTML GET и три API write-запроса (create/edit/cancel). Верхняя ступень 25 итераций/с соответствует **100 HTTP RPS**: 25 read + 75 write. Заданы пороги p95 <200 мс, HTTP error rate <0,1%, checks >99,9% и ноль dropped iterations.
 
