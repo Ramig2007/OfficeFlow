@@ -1,0 +1,28 @@
+# One Render Free Web Service; the PostgreSQL database is hosted separately on Neon.
+# Add NEON_* secrets through the Blueprint prompts. Never commit credentials.
+services:
+  - type: web
+    name: officeflow
+    runtime: docker
+    plan: free
+    region: frankfurt
+    repo: https://github.com/Ramig2007/OfficeFlow
+    branch: main
+    autoDeployTrigger: "off"
+    dockerfilePath: ./Dockerfile.render
+    healthCheckPath: /health/ready/
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: officeflow.settings_render
+      - key: DEBUG
+        value: "0"
+      - key: RENDER_SECRET_KEY
+        generateValue: true
+      - key: NEON_HOST
+        sync: false
+      - key: NEON_DATABASE
+        sync: false
+      - key: NEON_USER
+        sync: false
+      - key: NEON_PASSWORD
+        sync: false
