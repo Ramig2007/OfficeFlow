@@ -51,7 +51,7 @@
 | Prometheus | 3/3 targets UP | Локальный стенд |
 | Prometheus rules | 5 правил проверены через `promtool test rules`: SUCCESS | Проверка правил не равна доставке уведомлений |
 | Alertmanager | Тестовый alert принят и направлен в `null-receiver` | Реальные уведомления не отправляются |
-| GitHub Actions | Main run #40: jobs `quality` и `docker` — Success; Docker runtime smoke проверил migrations, readiness и CSS через Nginx | Ephemeral CI, не публичный VPS deploy |
+| GitHub Actions | Main run #63: jobs `quality` и `docker` — Success; PR run #66 для приватности schedule API также прошёл оба job до merge PR #12 | Ephemeral CI, не публичный VPS deploy |
 
 Подробные протоколы: `docs/E2E_BROWSER_RUN.md`, `docs/LOADTEST_RESULTS_2026-11-19.md`, `docs/BACKUP_VALIDATION.md`, `docs/STATUS.md`.
 
@@ -79,6 +79,7 @@
 | PILOT-16 | 100 RPS и бизнес-сценарии | Есть baseline и авторизованное чтение; записи под нагрузкой не тестировались | Частично |
 | PILOT-17 | 200 RPS / деградация PostgreSQL | 200 RPS чтения проверены; fault injection PostgreSQL не выполнялся | Частично |
 | PILOT-18 | UX 375 / 768 / 1440 | Playwright проверил 375px и desktop 1440px; 768px отдельно не подтверждён | Частично |
+| PILOT-19 | Приватность общего API расписания | Отдельный сериализатор возвращает только календарные поля; regression test проверяет отсутствие notes и данных автора/согласования | Проверено в PR #12 CI, merge commit `6a9fe11` |
 
 ## 4. Метрики и ограничения выводов
 
@@ -99,7 +100,7 @@
 - CI исправлен добавлением `collectstatic` до pytest;
 - конфигурация Gunicorn увеличена до 4 workers × 4 threads для проверенного read-only сценария.
 
-Открытые ограничения: публичный VPS не развёрнут; GHCR package Private; Alertmanager использует `null-receiver`; off-host backup не настроен; нагрузка записи, 1000 пользователей и SLA 99,9% не доказаны.
+Открытые ограничения: публичный VPS не развёрнут; GHCR package Private; Alertmanager использует `null-receiver`; off-host backup не настроен; нагрузка записи, 1000 пользователей и SLA 99,9% не доказаны. Для итогового Word-отчёта подготовлены места и инструкции для 9 скриншотов интерфейса; изображения нужно вставить после съёмки локального сайта.
 
 ## 6. Формальная приёмка
 
