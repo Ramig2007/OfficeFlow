@@ -89,11 +89,28 @@ services:
     depends_on:
       redis: {condition: service_healthy}
     networks: [internal]
+  alertmanager-config:
+    image: python:3.12-alpine
+    profiles: [observability]
+    environment:
+      ALERTMANAGER_WEBHOOK_URL: ${ALERTMANAGER_WEBHOOK_URL:-}
+      ALERTMANAGER_WEBHOOK_BEARER_TOKEN: ${ALERTMANAGER_WEBHOOK_BEARER_TOKEN:-}
+    volumes:
+      - ./scripts/render_alertmanager_config.py:/scripts/render_alertmanager_config.py:ro
+      - alertmanager_config:/out
+    command: ["python", "/scripts/render_alertmanager_config.py", "--output", "/out/alertmanager.yml"]
+    restart: "no"
+    networks: [internal]
   alertmanager:
     image: prom/alertmanager:v0.28.1
     profiles: [observability]
+    restart: unless-stopped
+    depends_on:
+      alertmanager-config:
+        condition: service_completed_successfully
     volumes:
-      - ./infra/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_config:/etc/alertmanager:ro
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml"]
     ports: ["127.0.0.1:9093:9093"]
     networks: [internal]
   grafana:
@@ -120,3 +137,4 @@ volumes:
   staticfiles:
   prometheus_data:
   grafana_data:
+  alertmanager_config:
