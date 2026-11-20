@@ -4,7 +4,7 @@
 
 Масштабные испытания выполняются только в одноразовом Docker Compose окружении GitHub Actions. Оно создаёт собственные PostgreSQL/Redis volumes, использует DEBUG=1, синтетические аккаунты и уничтожает volumes после завершения. Не направляйте эти сценарии на production, публичный VPS или базу с реальными данными.
 
-Workflow: .github/workflows/scale-validation.yml. Он запускается при push в ветку scale-validation/** или вручную после появления workflow в main. Результаты k6 и снимки docker stats сохраняются в GitHub Actions artifact officeflow-scale-validation на 90 дней.
+Workflow: `.github/workflows/scale-validation.yml`. Он запускается через `workflow_call` из `.github/workflows/ci.yml` для PR из ветки `scale-validation/**` либо вручную через `workflow_dispatch` на доступной workflow-ветке. Результаты k6 и снимки docker stats сохраняются в GitHub Actions artifact officeflow-scale-validation на 90 дней.
 
 ## 1. 1000 независимых авторизованных сессий
 
@@ -46,4 +46,4 @@ Workflow: .github/workflows/scale-validation.yml. Он запускается п
 
 ## 5. Фактические результаты
 
-Результаты не записываются заранее. После реального запуска workflow сюда следует добавить run URL, commit, пиковые VU, число успешных логинов, фактические операции/с, p95/p99, ошибки, dropped iterations и максимальные CPU/RAM. Сырые логи и JSON summary хранятся в artifact officeflow-scale-validation.
+Прогон **PR CI #106 завершился успешно** (`quality`, `docker` и `scale-validation`). Подтверждены 1000 отдельных успешных логинов, максимум 1000 VU, 41 299 HTTP запросов без ошибок, p95 6,91 мс; отдельно 3750 полных циклов создания/изменения/отмены (11 250 записей), 18 750/18 750 проверок, p95 10,40 мс, 0 ошибок и пропусков. Все цифры, показатели CPU/RAM, ссылки на CI и artifact находятся в **`docs/SCALE_RESULTS_2026-11-21.md`**. Сырые журналы и JSON summary сохранены в `officeflow-scale-validation` (90 дней).
