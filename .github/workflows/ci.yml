@@ -189,7 +189,12 @@ jobs:
       - name: Seed isolated browser-test data
         env:
           DEMO_PASSWORD: "OfficeFlow-CI-Demo-Only-2026!"
-        run: docker compose exec -T -e "DEMO_PASSWORD=$DEMO_PASSWORD" app python manage.py seed_demo
+          LOADTEST_USERS: "10"
+        run: |
+          docker compose exec -T \
+            -e "DEMO_PASSWORD=$DEMO_PASSWORD" \
+            -e "LOADTEST_USERS=$LOADTEST_USERS" \
+            app python manage.py seed_demo
       - name: Build Chromium browser-test image
         run: docker build -f e2e/Dockerfile.browser -t officeflow-e2e e2e
       - name: Run Chromium browser smoke tests
@@ -203,6 +208,20 @@ jobs:
             -e K6_PASSWORD="$DEMO_PASSWORD" \
             -v "$RUNNER_TEMP/officeflow-e2e-artifacts:/tests/artifacts" \
             officeflow-e2e
+      - name: Run isolated multi-session booking write-load test
+        env:
+          DEMO_PASSWORD: "OfficeFlow-CI-Demo-Only-2026!"
+        run: |
+          room_id="$(docker compose exec -T app python manage.py shell -c 'from workspace.models import Room; print(Room.objects.get(slug="mayak").pk)' | tr -d '\r')"
+          test -n "$room_id"
+          docker run --rm --network officeflow_internal \
+            -e BASE_URL=http://proxy \
+            -e K6_PASSWORD="$DEMO_PASSWORD" \
+            -e K6_ROOM_ID="$room_id" \
+            -e TARGET_RPS=5 \
+            -e DURATION=30s \
+            -v "$PWD/scripts/loadtest-booking-write.js:/scripts/loadtest-booking-write.js:ro" \
+            grafana/k6:0.52.0 run /scripts/loadtest-booking-write.js
       - name: Upload browser E2E screenshots
         if: always()
         uses: actions/upload-artifact@v6
