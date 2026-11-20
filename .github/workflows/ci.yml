@@ -212,7 +212,7 @@ jobs:
         env:
           DEMO_PASSWORD: "OfficeFlow-CI-Demo-Only-2026!"
         run: |
-          room_id="$(docker compose exec -T app python manage.py shell -c 'from workspace.models import Room; print(Room.objects.get(slug="mayak").pk)' | tr -d '\r')"
+          room_id="$(docker compose exec -T app python -c 'import os; os.environ.setdefault("DJANGO_SETTINGS_MODULE", "officeflow.settings"); import django; django.setup(); from workspace.models import Room; print(Room.objects.get(slug="mayak").pk)' | tr -d '\r')"
           test -n "$room_id"
           docker run --rm --network officeflow_internal \
             -e BASE_URL=http://proxy \
