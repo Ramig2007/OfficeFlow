@@ -120,6 +120,22 @@ SECURE_HSTS_PRELOAD = os.getenv("SECURE_HSTS_PRELOAD", "0") == "1"
 SECURE_REFERRER_POLICY = os.getenv("SECURE_REFERRER_POLICY", "same-origin")
 SESSION_COOKIE_SECURE = os.getenv("COOKIE_SECURE", "0") == "1"
 CSRF_COOKIE_SECURE = os.getenv("COOKIE_SECURE", "0") == "1"
+
+# Fail closed in production: a placeholder secret or HTTP-only configuration
+# must never silently start as a public deployment.
+if not DEBUG:
+    if len(SECRET_KEY) < 50 or SECRET_KEY.startswith(("REPLACE_", "CHANGE_")):
+        raise RuntimeError("Production SECRET_KEY must be a unique random value of at least 50 characters")
+    if not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS:
+        raise RuntimeError("Set explicit production ALLOWED_HOSTS; wildcard hosts are forbidden")
+    if all(host in {"localhost", "127.0.0.1", "app", "proxy"} for host in ALLOWED_HOSTS):
+        raise RuntimeError("Production ALLOWED_HOSTS must include the public domain")
+    if not CSRF_TRUSTED_ORIGINS or any(not origin.startswith("https://") for origin in CSRF_TRUSTED_ORIGINS):
+        raise RuntimeError("Production CSRF_TRUSTED_ORIGINS must contain HTTPS origins only")
+    if not SECURE_SSL_REDIRECT or not SESSION_COOKIE_SECURE or not CSRF_COOKIE_SECURE:
+        raise RuntimeError("Production HTTPS redirect and secure cookies must be enabled")
+    if SECURE_HSTS_SECONDS < 31536000:
+        raise RuntimeError("Production HSTS must be configured for at least one year")
 LOGGING = {
     "version": 1, "disable_existing_loggers": False,
     "formatters": {"simple": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"}},
