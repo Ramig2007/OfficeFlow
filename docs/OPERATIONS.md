@@ -55,9 +55,11 @@ docker compose exec db pg_isready -U officeflow -d officeflow
 ```bash
 bash scripts/backup.sh
 bash scripts/test-restore.sh backups/officeflow-YYYYMMDDTHHMMSSZ.dump
+# Дополнительная проверка в независимом временном контейнере PostgreSQL:
+bash scripts/test-restore-independent.sh backups/officeflow-YYYYMMDDTHHMMSSZ.dump
 ```
 
-Первый скрипт создаёт custom-format dump, проверяет его читаемость через `pg_restore --list` и сохраняет переносимый SHA-256. Второй восстанавливает архив во временную БД, сверяет counts основных таблиц и наличие GiST exclusion constraint, затем удаляет временную БД. Исходная БД используется только для чтения. Архив и checksum всё равно нужно копировать в отдельное зашифрованное хранилище за пределами VPS.
+Первый скрипт создаёт custom-format dump, проверяет его читаемость через `pg_restore --list` и сохраняет переносимый SHA-256. Второй восстанавливает архив во временную БД, сверяет counts основных таблиц и наличие GiST exclusion constraint, затем удаляет временную БД. Исходная БД используется только для чтения. **В CI #117 успешно проверен также скрипт `test-restore-independent.sh`:** восстановление в другом PostgreSQL-контейнере без сети и постоянных томов, сверка checksum, counts и GiST constraint; результат `INDEPENDENT_RESTORE_OK`. Такой тест требует Docker и OpenSSL, а при сравнении source/restored counts предполагает отсутствие новых записей между dump и проверкой. Это не имитация потери физического сервера. Архив и checksum всё равно нужно копировать в отдельное зашифрованное хранилище за пределами VPS.
 
 **Внимание:** `restore.ps1` передаёт дамп во временный файл контейнера PostgreSQL и вызывает `pg_restore --clean`. Эта операция меняет существующую БД. На продуктивной системе следует остановить запись/перевести приложение в maintenance, согласовать восстановление и верифицировать referential integrity после него. Скрипт рассчитан на простую локальную учебную среду; полноценный DR runbook должен учитывать последовательность отключения сервисов, повторный запуск, ротацию секретов и rollback.
 
