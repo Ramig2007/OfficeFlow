@@ -122,6 +122,41 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          load: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
           tags: |
             ${{ steps.image.outputs.name }}:latest
             ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
+      - name: Prepare image for runtime smoke test
+        run: |
+          image="${{ steps.image.outputs.name }}"
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ]]; then
+            docker pull "$image:sha-$GITHUB_SHA"
+          fi
+          docker tag "$image:sha-$GITHUB_SHA" officeflow-app
+          cp .env.example .env
+      - name: Smoke test app startup, health and static files
+        run: |
+          docker compose up -d --no-build
+          ready=0
+          for attempt in $(seq 1 60); do
+            if docker compose exec -T app python -c 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/health/ready/", timeout=2)' >/dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" -eq 1
+          docker compose exec -T app python manage.py migrate --noinput
+          docker compose exec -T app sh -c 'find /app/staticfiles -type f -print -quit | grep -q .'
+          asset_path="$(docker compose exec -T app python -c 'from django.templatetags.static import static; print(static("css/app.css"))' | tr -d '\r')"
+          case "$asset_path" in
+            /static/*) ;;
+            *) echo "Unexpected static URL: $asset_path"; exit 1 ;;
+          esac
+          html="$(curl -fsS http://127.0.0.1:8080/accounts/login/)"
+          printf '%s' "$html" | grep -F "$asset_path" >/dev/null
+          curl -fsS "http://127.0.0.1:8080$asset_path" -o /dev/null
+          echo "Container startup, health, and static serving passed."
+      - name: Stop smoke stack
+        if: always()
+        run: docker compose down -v --remove-orphans
