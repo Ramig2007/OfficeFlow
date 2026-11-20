@@ -1,9 +1,13 @@
 name: OfficeFlow Scale Validation
 
 on:
-  push:
-    branches:
-      - "scale-validation/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/loadtest-1000-users.js"
+      - "scripts/loadtest-booking-create-edit-cancel.js"
+      - "workspace/management/commands/seed_demo.py"
+      - ".github/workflows/scale-validation.yml"
   workflow_dispatch:
 
 permissions:
@@ -41,6 +45,7 @@ jobs:
           docker compose exec -T app python manage.py migrate --noinput
 
       - name: Seed 1000 disposable independent users
+        id: seed
         env:
           DEMO_PASSWORD: "OfficeFlow-Scale-CI-Only-2026!"
         run: |
@@ -127,7 +132,7 @@ jobs:
           PREPARE_OUTCOME: \${{ steps.prep.outcome }}
           SCALE_OUTCOME: \${{ steps.scale_tests.outcome }}
         run: |
-          if [[ "$PREPARE_OUTCOME" != "success" || "$SCALE_OUTCOME" != "success" ]]; then
+          if [[ "$PREPARE_OUTCOME" != "success" || "$SEED_OUTCOME" != "success" || "$SCALE_OUTCOME" != "success" ]]; then
             echo "Scale validation did not complete successfully; inspect the uploaded artifact."
             exit 1
           fi
