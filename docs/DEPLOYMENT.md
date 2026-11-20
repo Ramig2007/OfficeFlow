@@ -28,7 +28,8 @@ PostgreSQL 16      Redis 7
 - `compose.production.yaml` — дополнительный Compose-файл с Caddy и обязательными HTTPS-настройками Django;
 - `infra/caddy/Caddyfile` — автоматический TLS reverse proxy;
 - `docker-entrypoint.sh` — сбор статических файлов при старте приложения;
-- `scripts/backup.sh` — Linux backup PostgreSQL с проверкой читаемости архива и SHA-256.
+- `scripts/backup.sh` — Linux backup PostgreSQL с проверкой читаемости архива и SHA-256;
+- `scripts/test-restore.sh` — полное восстановление во временную БД и сверка основных таблиц.
 
 Общая конфигурация остаётся в `compose.yaml`. Локальный Nginx опубликован только на loopback `127.0.0.1:8080`; при production-деплое публичные 80/443 принимает Caddy.
 
