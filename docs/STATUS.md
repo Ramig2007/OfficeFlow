@@ -6,7 +6,7 @@
 - Основная ветка: `main`.
 - PR #8 (readiness-документация), PR #9 (закрытие соединений конкурентного теста и схемы API), PR #10 (синхронизация readiness-документации) и PR #12 (ограничение данных общего API расписания) объединены в `main`.
 - Подтверждённый полный main pipeline: run #63 для commit `8c1a71c` — **Success** (`quality`, `docker`). Дополнительно PR run #66 проверил security fix #12: оба job завершились **Success** до merge commit `6a9fe11`.
-- Запуски #41–#51 были отменены механизмом concurrency при последовательных обновлениях документации; main runs #58, #61 и #63 завершились успешно. Run #63 проверил актуальное состояние main после объединения PR #8–#10.
+- Запуски #41–#51 были отменены механизмом concurrency при последовательных обновлениях документации; подтверждённые main runs #58, #61 и #63 завершились успешно. PR run #66 отдельно проверил изменение приватности API расписания перед merge PR #12.
 - Run #63 собрал и опубликовал Docker image в GHCR с тегами `latest` и commit SHA. GHCR package остаётся **Private**; публичны исходники, а не контейнерный пакет.
 - Production-конфигурация и runtime smoke уже входят в основную ветку: Caddy, HTTPS-настройки Django, Compose overlay, сбор статики, миграции и проверка readiness/CSS через Nginx.
 
@@ -23,7 +23,7 @@ Docker job run #63 включал полный временный Compose smoke-
 | k6 | ~199,2 HTTP req/s, p95=13,19 мс, 0% HTTP-ошибок, 30 секунд | Авторизованные GET, одна тестовая сессия |
 | Backup/restore | `RESTORE_TEST_OK`, counts совпали, GiST constraint проверен | Временная БД в том же PostgreSQL-контейнере |
 | Мониторинг | Prometheus 3/3 targets UP; 5 правил проверены | Alertmanager `null-receiver`, реальные уведомления не доставляются |
-| CI quality | Ruff, Bandit, static audit, Django checks, OpenAPI validation, deploy checks, migrations, collectstatic, pytest | Run #63 Success |
+| CI quality | Ruff, Bandit, static audit, Django checks, OpenAPI validation, deploy checks, migrations, collectstatic, pytest | Main run #63 Success; PR run #66 Success |
 | CI Docker | Compose/Caddy config, shell syntax, image build/push, runtime smoke | Main run #63 Success; PR run #66 Success |
 | API privacy | Schedule API отдаёт только календарные поля; regression test проверяет отсутствие заметок и данных владельца | PR #12; run #66 `quality` и `docker` Success; merge commit `6a9fe11` |
 | Production config | Caddy HTTPS overlay, secure Django settings, backup/restore scripts | В main; реальный VPS ещё не развёрнут |
@@ -32,13 +32,12 @@ Docker job run #63 включал полный временный Compose smoke-
 
 ## Что ещё требуется до полной сдачи и публичного запуска
 
-1. CI для исправления приватности API расписания пройден до merge: PR run #66 завершился успешно в обоих jobs; merge commit — `6a9fe11`.
-2. Получить VPS и домен, настроить DNS/firewall и выполнить реальный HTTPS deploy.
-3. Пройти внешний smoke-test сайта: вход, каталог, расписание, бронирование, конфликт, VIP, права, CSV, статические файлы и health endpoints.
-4. Настроить backup за пределы VPS и проверить восстановление на отдельной машине.
-5. Настроить реальный receiver Alertmanager, если это требуется для сдачи.
-6. При необходимости выполнить write workload и тест независимых сессий; 1000 пользователей не подтверждены.
-7. Завершить формальную приёмку, сохранить скриншоты и подготовить итоговый Word-отчёт ИСП49.
+1. Получить VPS и домен, настроить DNS/firewall и выполнить реальный HTTPS deploy.
+2. Пройти внешний smoke-test сайта: вход, каталог, расписание, бронирование, конфликт, VIP, права, CSV, статические файлы и health endpoints.
+3. Настроить backup за пределы VPS и проверить восстановление на отдельной машине.
+4. Настроить реальный receiver Alertmanager, если это требуется для сдачи.
+5. При необходимости выполнить write workload и тест независимых сессий; 1000 пользователей не подтверждены.
+6. Вставить фактические скриншоты сайта в подготовленный Word-отчёт и завершить формальную приёмку.
 
 ## Ограничения, которые нельзя скрывать
 
