@@ -75,7 +75,7 @@
 | 5.3 | Метрики Redis и PostgreSQL | redis_exporter / postgres_exporter; оба targets UP | Проверено локально |
 | 5.4 | Алерты по SLA | `infra/prometheus/alerts.yml`, 5 правил; renderer HTTPS webhook; added unit tests | Правила и оба шаблона конфигурации проверялись CI; новые unit tests ждут CI. Реальный endpoint/доставка требуют URL и credential владельца |
 | 5.5 | Grafana dashboard | `infra/grafana/dashboards/officeflow.json` | Конфигурация готова; запуск Prometheus/Grafana проверен в локальном observability-стенде |
-| 5.6 | 100–200 RPS стресс-тест | `scripts/loadtest-booking-create-edit-cancel.js`: один авторизованный GET + create/edit/cancel на итерацию; пик 25 циклов/с = 100 HTTP RPS | Новый смешанный профиль с p95≤200 мс и error rate≤0,1% включён в существующий scale CI; результат ожидает запуска текущего PR. Ранее подтверждены ~199,2 RPS read-only и ~60 write RPS |
+| 5.6 | 100–200 RPS стресс-тест | `scripts/loadtest-mixed-100-rps.js`: один авторизованный GET + create/edit/cancel на итерацию; пик 25 циклов/с = 100 HTTP RPS | Новый смешанный профиль с p95≤200 мс и error rate≤0,1% включён в существующий scale CI; результат ожидает запуска текущего PR. Ранее подтверждены ~199,2 RPS read-only и ~60 write RPS |
 | 5.7 | Деградация БД и анализ | PR CI #93: PostgreSQL stop→readiness 503→start→readiness 200; аналогично Redis | Автоматический сценарий прошёл; HA/failover БД не доказан |
 
 ## 6. Методики тестирования
