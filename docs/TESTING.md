@@ -8,7 +8,7 @@
 | Integration | DRF APIClient + PostgreSQL | REST 201/400/403/404/409, CSV, IDOR, audit, schedule API privacy | CI log / PR #12 regression test |
 | Concurrency | 2 threads + PostgreSQL | только одна запись на занятый слот | PostgreSQL CI |
 | Browser acceptance E2E | Playwright Chromium | 21 сценарий: login, UI, permissions, 375/768 px, booking lifecycle, VIP, room admin | `docs/VERIFICATION_2026-11-21.md` |
-| Load | k6 | baseline, авторизованные GET и изолированный multi-session create/cancel write test | `docs/LOADTEST_RESULTS_2026-11-19.md`, `docs/VERIFICATION_2026-11-21.md` |
+| Load | k6 | baseline/GET, 1000 отдельных логинов и 3750 изолированных create/edit/cancel циклов | `docs/LOADTEST_RESULTS_2026-11-19.md`, `docs/SCALE_RESULTS_2026-11-21.md` |
 | Static | Ruff, Bandit, structural audit | ошибки кода, распространённые security patterns, структура | GitHub Actions |
 | Django security | `manage.py check --deploy` | production security settings | GitHub Actions |
 | UX | Chromium 375, 768 и 1440 px | mobile/tablet каталоги без горизонтального overflow и desktop dashboard | CI #93 screenshots |
@@ -70,7 +70,7 @@ python manage.py makemigrations --check --dry-run
 1. `scripts/loadtest.js` — baseline `/health/live/`; 100 и 200 RPS за 30 секунд, p95 1,40 и 1,49 мс.
 2. `scripts/loadtest-auth-read.js` — login + авторизованные GET `/rooms/`, `/schedule/`, `/my-bookings/`; около 199,2 HTTP req/s, p95 13,19 мс, 0 HTTP-ошибок за 30 секунд.
 
-Второй сценарий использовал одну авторизованную сессию и не создавал бронирования. Дополнительно сценарий `scripts/loadtest-booking-write.js` проверен в PR CI #93: **240** циклов создания и отмены, **480** успешных записей, **720/720** проверок, **0** HTTP-ошибок и dropped iterations, p95 **16,92 мс**, до **11 активных VU**. Прогон не доказывает 1000 независимых пользователей, 100/200 RPS записи, долгосрочную доступность или SLA 99,9%. Подробные значения: `docs/LOADTEST_RESULTS_2026-11-19.md` и `docs/VERIFICATION_2026-11-21.md`.
+Второй исторический сценарий использовал одну авторизованную сессию и не создавал бронирования. В CI #93 дополнительный k6 write test выполнил 240 create/cancel циклов. **Актуальная расширенная проверка PR #17, CI #106:** 1000 независимых успешных логинов, 41 299 HTTP запросов без ошибок (p95 6,91 мс); отдельно **3750** create/edit/cancel циклов (11 250 успешных записей), 18 750/18 750 проверок, 0 HTTP-ошибок и dropped iterations, p95 **10,40 мс**, до 40 активных VU. Это не доказывает промышленную производительность на произвольном VPS, 100/200 RPS исключительно записи или SLA 99,9%. Подробные значения и первичный artifact: `docs/SCALE_RESULTS_2026-11-21.md`.
 
 План следующих нагрузочных испытаний:
 - отдельная изолированная БД;
@@ -102,8 +102,7 @@ python manage.py makemigrations --check --dry-run
 
 ## Открытые проверки
 
-- нагрузка на **редактирование** под высокой интенсивностью (создание и отмена уже проверены отдельным write workload);
-- 1000 независимых пользователей;
+- 100/200 RPS исключительно операций записи (проверено примерно 60 write RPS на верхней ступени);
 - длительное измерение SLI/SLA;
 - HA/failover PostgreSQL (базовые shutdown/start + readiness 503/200 уже проверены в CI #93);
 - DAST / внешний security review;
