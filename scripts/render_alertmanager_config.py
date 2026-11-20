@@ -25,7 +25,7 @@ def render_config(webhook_url: str, bearer_token: str) -> str:
     if webhook_url:
         parsed = urlsplit(webhook_url)
         try:
-            parsed.port
+            _ = parsed.port
         except ValueError as exc:
             raise ValueError("ALERTMANAGER_WEBHOOK_URL contains an invalid port") from exc
         if (
