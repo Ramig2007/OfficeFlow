@@ -50,13 +50,14 @@ docker compose exec db pg_isready -U officeflow -d officeflow
 .\scripts\restore.ps1 -BackupFile .\backups\officeflow-YYYYMMDD-HHmmss.dump
 ```
 
-Для Linux/VPS предусмотрен `scripts/backup.sh`:
+Для Linux/VPS предусмотрены `scripts/backup.sh` и `scripts/test-restore.sh`:
 
 ```bash
 bash scripts/backup.sh
+bash scripts/test-restore.sh backups/officeflow-YYYYMMDDTHHMMSSZ.dump
 ```
 
-Скрипт создаёт custom-format dump, проверяет его читаемость через `pg_restore --list` и сохраняет SHA-256. Он хранит копию в `backups/` на текущем сервере; для полноценной защиты от потери VPS архив и checksum нужно копировать в отдельное зашифрованное хранилище.
+Первый скрипт создаёт custom-format dump, проверяет его читаемость через `pg_restore --list` и сохраняет переносимый SHA-256. Второй восстанавливает архив во временную БД, сверяет counts основных таблиц и наличие GiST exclusion constraint, затем удаляет временную БД. Исходная БД используется только для чтения. Архив и checksum всё равно нужно копировать в отдельное зашифрованное хранилище за пределами VPS.
 
 **Внимание:** `restore.ps1` передаёт дамп во временный файл контейнера PostgreSQL и вызывает `pg_restore --clean`. Эта операция меняет существующую БД. На продуктивной системе следует остановить запись/перевести приложение в maintenance, согласовать восстановление и верифицировать referential integrity после него. Скрипт рассчитан на простую локальную учебную среду; полноценный DR runbook должен учитывать последовательность отключения сервисов, повторный запуск, ротацию секретов и rollback.
 
