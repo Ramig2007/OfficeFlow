@@ -136,6 +136,8 @@ jobs:
           fi
           docker tag "$image:sha-$GITHUB_SHA" officeflow-app
           cp .env.example .env
+          # Browser tests resolve the reverse proxy by its Compose service name.
+          sed -i 's/^ALLOWED_HOSTS=.*/ALLOWED_HOSTS=localhost,127.0.0.1,proxy/' .env
       - name: Smoke test app startup, health and static files
         run: |
           docker compose up -d --no-build
@@ -159,6 +161,31 @@ jobs:
           printf '%s' "$html" | grep -F "$asset_path" >/dev/null
           curl -fsS "http://127.0.0.1:8080$asset_path" -o /dev/null
           echo "Container startup, health, and static serving passed."
+      - name: Seed isolated browser-test data
+        env:
+          DEMO_PASSWORD: "OfficeFlow-CI-Demo-Only-2026!"
+        run: docker compose exec -T -e "DEMO_PASSWORD=$DEMO_PASSWORD" app python manage.py seed_demo
+      - name: Build Chromium browser-test image
+        run: docker build -f e2e/Dockerfile.browser -t officeflow-e2e e2e
+      - name: Run Chromium browser smoke tests
+        env:
+          DEMO_PASSWORD: "OfficeFlow-CI-Demo-Only-2026!"
+        run: |
+          mkdir -p "$RUNNER_TEMP/officeflow-e2e-artifacts"
+          docker run --rm --ipc=host --network officeflow_internal \
+            -e BASE_URL=http://proxy \
+            -e K6_USERNAME=employee \
+            -e K6_PASSWORD="$DEMO_PASSWORD" \
+            -v "$RUNNER_TEMP/officeflow-e2e-artifacts:/tests/artifacts" \
+            officeflow-e2e
+      - name: Upload browser E2E screenshots
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: officeflow-browser-e2e
+          path: ${{ runner.temp }}/officeflow-e2e-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Stop smoke stack
         if: always()
         run: docker compose down -v --remove-orphans

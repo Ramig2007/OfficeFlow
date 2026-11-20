@@ -15,14 +15,14 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         if os.getenv("DEBUG") != "1":
             raise CommandError("seed_demo is only available with DEBUG=1")
-        admin, _ = User.objects.get_or_create(
+        admin, admin_created = User.objects.get_or_create(
             username="manager", defaults={"first_name": "Анна", "last_name": "Орлова", "role": User.Roles.ADMIN, "email": "manager@example.test"},
         )
-        if not admin.has_usable_password():
+        if admin_created or not admin.password or not admin.has_usable_password():
             admin.set_password(os.getenv("DEMO_PASSWORD", "DemoOnly!123"))
             admin.save(update_fields=["password"])
-        member, _ = User.objects.get_or_create(username="employee", defaults={"first_name": "Илья", "last_name": "Миронов", "email": "employee@example.test"})
-        if not member.has_usable_password():
+        member, member_created = User.objects.get_or_create(username="employee", defaults={"first_name": "Илья", "last_name": "Миронов", "email": "employee@example.test"})
+        if member_created or not member.password or not member.has_usable_password():
             member.set_password(os.getenv("DEMO_PASSWORD", "DemoOnly!123"))
             member.save(update_fields=["password"])
         specs = [
