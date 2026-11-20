@@ -2,7 +2,7 @@
 
 **OfficeFlow** — учебное веб-приложение для бронирования переговорных, построенное вокруг недельного расписания. Отдельный проект, не основанный на MeetingRoomBooking. Язык интерфейса: русский. Стек: Django 5.2 LTS, PostgreSQL, Redis, Django REST Framework, Nginx, Caddy (production TLS), Docker Compose, Prometheus, Grafana.
 
-> **Статус на 21.11.2026:** PR #17 объединён в `main` (merge commit `754ec0c`). PR CI **run #106**: jobs `quality`, `docker`, `scale-validation` — **Success**; 68 pytest passed, покрытие двух критических модулей 91,67%, Chromium E2E; 1000 независимых успешных авторизаций, пик 1000 VU и 41 299 HTTP-запросов без ошибок (p95 6,91 мс), а также 3750 полных циклов создания/редактирования/отмены брони (11 250 записей, p95 10,40 мс, 0 ошибок). Подтверждения: `docs/SCALE_RESULTS_2026-11-21.md`. Это изолированная CI-среда; SLA 99,9%, публичный VPS и промышленная доступность **не подтверждены**. GHCR package остаётся Private.
+> **Статус на 21.11.2026:** PR #18 объединён в `main` (merge commit `3910bfd`). PR CI run #117: **quality и docker — Success**, Chromium **27/27** (включая регистрацию, logout, роли и CSV с фильтрами), PostgreSQL **INDEPENDENT_RESTORE_OK** в другом изолированном контейнере. Ранее CI #106 подтвердил 1000 независимых синтетических сессий, 3750 циклов create/edit/cancel (11 250 записей, p95 10,40 мс, 0 ошибок), а также 68 pytest passed и покрытие двух критических модулей 91,67%. Детали: `docs/PILOT.md`, `docs/BACKUP_VALIDATION.md`, `docs/SCALE_RESULTS_2026-11-21.md`. Публичного VPS, подтверждённого SLA 99,9% и off-host backup пока нет; GHCR package остаётся Private.
 
 ## Подтверждённые результаты испытаний — по 21.11.2026
 
@@ -10,13 +10,13 @@
 |---|---|---|
 | Django / pytest | **68 passed** в PR CI #106 | Покрытие в CI измеряется только для `workspace.services` и `workspace.queries` |
 | Покрытие критических модулей | 91,67% в CI (требование ≥70%) | Не равно покрытию всей системы |
-| Playwright E2E | 21/21 в CI PR run #93, включая бронирования, VIP, администрирование и 375/768 px | Изолированная CI-база, не заменяет внешнюю приёмку |
+| Playwright E2E | **27/27** в CI #117, включая бронирования, VIP, роли, регистрацию, logout, CSV и 375/768 px | Изолированная CI-база, не заменяет независимую ручную приёмку |
 | k6, авторизованное чтение | 200 целевых RPS, ~199,2 HTTP RPS, p95 13,19 мс, 0% HTTP-ошибок | GET с одной сессией; не 1000 пользователей |
 | k6, создание/изменение/отмена | **3750** полных циклов, **11 250** успешных записей, **18 750/18 750** проверок, p95 **10,40 мс** и 0 ошибок/пропусков | CI #106, 4 минуты, ступень до 20 циклов/с (≈60 write RPS), до 40 активных VU; не 100/200 write RPS | 
 | k6, 1000 пользователей | **1000/1000** успешных логинов, пик **1000 VU**, 41 299 HTTP запросов, 0 HTTP ошибок, p95 **6,91 мс** | CI #106, ramp-up/3 мин удержания; не 1000 HTTP-запросов одновременно и не тест production VPS |
-| PostgreSQL backup/restore | Сверены количества записей и ограничение пересечений, `RESTORE_TEST_OK` | Восстановление проверено на временной БД, не на резервном сервере |
+| PostgreSQL backup/restore | **INDEPENDENT_RESTORE_OK**, SHA-256, counts и GiST constraint в отдельном контейнере PostgreSQL, CI #117 | Тот же Docker-хост, off-host копии нет |
 | Prometheus / Alertmanager | 3/3 цели `UP`, 5/5 правил проверены; CI валидирует null-receiver и необязательный HTTPS webhook | Реальная доставка требует настроенного адреса получателя |
-| GitHub Actions | PR #17 run #106: `quality`, `docker`, `scale-validation` Success, 68 pytest, полный k6 capacity/write suite | CI не является доказательством публичного развёртывания или SLA |
+| GitHub Actions | CI #106: `quality`, `docker`, `scale-validation` Success; CI #117: `quality`, `docker` Success, Chromium 27/27 и независимый restore | CI не является доказательством публичного развёртывания или SLA |
 | GHCR | `ghcr.io/ramig2007/officeflow:latest` опубликован | Пакет **Private**, для скачивания необходим соответствующий доступ |
 
 Подробности и ограничения: [`docs/STATUS.md`](docs/STATUS.md).
@@ -178,7 +178,7 @@ docker compose --profile observability up -d --build
 .\scripts\restore.ps1 -BackupFile .\backups\officeflow-YYYYMMDD-HHmmss.dump
 ```
 
-Восстановление требует подтверждения и заменяет содержимое базы. Папка `backups/` добавлена в `.gitignore`; копии нужно хранить отдельно от сервера, шифровать и периодически проверять восстановление.
+Восстановление требует подтверждения и заменяет содержимое базы. Папка `backups/` добавлена в `.gitignore`; копии нужно хранить отдельно от сервера, шифровать и периодически проверять восстановление. Дополнительно в Linux/Docker CI #117 проверен `bash scripts/test-restore-independent.sh backups/<имя>.dump`: он поднимает отдельный временный PostgreSQL-контейнер, не изменяет основную базу и требует SHA-256, Docker и OpenSSL. См. `docs/BACKUP_VALIDATION.md`.
 
 ## Структура
 
