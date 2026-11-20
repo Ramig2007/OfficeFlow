@@ -15,7 +15,8 @@ staticfiles
 e2e
 workspace/tests
 docs
-scripts
+scripts/*
+!scripts/render-start.sh
 .github
 .vscode
 README*

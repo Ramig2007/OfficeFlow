@@ -1,5 +1,7 @@
 # Развёртывание OfficeFlow на VPS
 
+> **Другая, бесплатная схема:** Render Free + Neon Free (без VPS, Nginx и Caddy) описана в [`docs/RENDER_NEON_DEPLOYMENT.md`](RENDER_NEON_DEPLOYMENT.md). Это отдельная конфигурация; не следует применять команды из этого VPS-руководства к Render.
+
 **Статус:** production-конфигурация объединена в `main` и прошла CI/runtime smoke; публичный сервер ещё не развёрнут.  
 **Цель:** безопасно опубликовать приложение по HTTPS, не открывая PostgreSQL, Redis и служебные панели мониторинга в Интернет.
 

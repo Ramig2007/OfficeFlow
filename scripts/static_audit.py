@@ -41,7 +41,11 @@ for template in (ROOT / "templates").rglob("*.html"):
         errors.append(f"Unclosed template tags {stack} in {template.relative_to(ROOT)}")
 
 required = [
-    "Dockerfile", "compose.yaml", ".github/workflows/ci.yml", "README.md",
+    "Dockerfile", "Dockerfile.render", "render.yaml", "compose.yaml",
+    ".github/workflows/ci.yml", "README.md",
+    "officeflow/settings_render.py", "scripts/render-start.sh",
+    "workspace/management/commands/bootstrap_render_admin.py",
+    "docs/RENDER_NEON_DEPLOYMENT.md",
     "workspace/services.py", "workspace/api.py", "workspace/migrations/0002_postgres_overlap_guard.py",
     "static/css/app.css", "static/js/app.js", "scripts/loadtest.js",
     "docs/REQUIREMENTS.md", "docs/PILOT.md", "infra/grafana/dashboards/officeflow.json",

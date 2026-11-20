@@ -114,6 +114,21 @@ docker compose down
 | Ошибка входа в демоаккаунт | `.env` `DEMO_PASSWORD` использовался **до** первого `seed_demo`; смените пароль через админку либо Django shell |
 | Нет оформления | Entrypoint автоматически запускает `collectstatic`; проверить `docker compose logs app`, volume `staticfiles` и логи Nginx |
 
+## Бесплатный хостинг Render + Neon (как в MeetingRoomBooking)
+
+Для публикации OfficeFlow **без VPS и платного домена** подготовлены `render.yaml`,
+`Dockerfile.render`, `officeflow/settings_render.py` и автоматическое создание
+первого администратора. Render Free запускает Gunicorn и отдаёт HTTPS по
+`*.onrender.com`, Neon Free хранит отдельную PostgreSQL-базу. Redis, Nginx
+и Caddy в этом варианте не требуются; локальный Docker Compose не затронут.
+
+**Пошаговая инструкция:** [docs/RENDER_NEON_DEPLOYMENT.md](docs/RENDER_NEON_DEPLOYMENT.md).
+Секреты Neon вводить только в Render Environment, никогда не в GitHub или чат.
+Реальный облачный запуск и миграции должны быть проверены отдельно.
+На Render Free сервис может засыпать после 15 минут простоя,
+поэтому этот вариант **не подтверждает SLA 99,9%** и не наследует
+показатели теста 1000 VU на CI runner.
+
 ## Подготовка к VPS-хостингу
 
 Production-конфигурация уже находится в основной ветке: `compose.production.yaml`, шаблон переменных — `.env.production.example`, подробная инструкция — [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Для публичного запуска нужны VPS и домен; до фактической настройки DNS, HTTPS, firewall и внешнего backup сайт не считается размещённым в Интернете.
@@ -213,6 +228,7 @@ docs/                       матрица ИСП49, архитектура, э�
 13. `docs/SCALE_VALIDATION.md` — методика испытания 1000 независимых сессий и нагрузки на создание/редактирование/отмену.
 14. `docs/UPTIME_MONITORING.md` — внешний минутный мониторинг и расчёт доступности 99,9%.
 15. `docs/SCALE_RESULTS_2026-11-21.md` — фактические результаты 1000 VU, 3750 полных циклов бронирования, показатели CPU/RAM и журнал CI #106.
+16. `docs/RENDER_NEON_DEPLOYMENT.md` — альтернативный бесплатный деплой на Render Free + Neon Free, без VPS.
 
 ### Оговорки для защиты
 
