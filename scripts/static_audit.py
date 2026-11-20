@@ -47,6 +47,7 @@ required = [
     "docs/REQUIREMENTS.md", "docs/PILOT.md", "infra/grafana/dashboards/officeflow.json",
     ".env.production.example", "compose.production.yaml", "docker-entrypoint.sh",
     "infra/caddy/Caddyfile", "scripts/backup.sh", "scripts/test-restore.sh",
+    "scripts/test-restore-independent.sh",
     "scripts/loadtest-1000-users.js", "scripts/loadtest-booking-create-edit-cancel.js",
     "scripts/uptime_probe.py", "scripts/uptime_report.py",
     "infra/uptime/officeflow-uptime-probe.service",
