@@ -250,7 +250,7 @@ class ScheduleAPI(APIView):
         bookings = Booking.objects.filter(
             status__in=Booking.ACTIVE_STATUSES, starts_at__lt=week_end,
             ends_at__gt=week_start, room__is_active=True,
-        ).select_related("room", "creator")
+        ).select_related("room")
         room = request.query_params.get("room", "")
         if room.isdigit():
             bookings = bookings.filter(room_id=int(room))
