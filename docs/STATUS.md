@@ -20,7 +20,7 @@
 
 ## Изменения в ветке подготовки VPS
 
-В ветке `finalize/hosting-readiness-20261120` подготовлены, но ещё не приняты в `main`:
+В ветке `finalize/hosting-readiness-20261120` подготовлены изменения для PR #1 ([Prepare OfficeFlow for secure VPS hosting](https://github.com/Ramig2007/OfficeFlow/pull/1)). Первоначальный CI run #6 завершился успешно (`quality` и `docker` — Success); после последующих документальных уточнений требуется повторный прогон. PR ещё не объединён в `main`:
 - production Compose overlay с Caddy и автоматическим HTTPS;
 - production env template;
 - локальный Nginx ограничен loopback;
@@ -33,7 +33,7 @@
 - GHCR получает latest и commit-SHA tags при push в main;
 - Dependabot включён для pip и GitHub Actions.
 
-**До успешного CI на Pull Request эти изменения не считать прошедшими проверку.** Публичный VPS пока не развёрнут.
+**Кодовые изменения прошли CI run #6; после последних правок документации ожидается повторная проверка.** PR пока не объединён в `main`. Публичный VPS не развёрнут.
 
 ## Что ещё требуется
 
