@@ -1,15 +1,16 @@
 # Сводка фактической готовности OfficeFlow — 20.11.2026
 
-## Основная ветка и CI
+## Репозиторий, ветка и CI
 
 - Репозиторий исходного кода: https://github.com/Ramig2007/OfficeFlow — публичный.
 - Основная ветка: `main`.
-- Последний проверенный commit: `28f9693`.
-- GitHub Actions run #40: **Success** — jobs `quality` и `docker`.
-- Docker image собран и опубликован в GHCR с тегами `latest` и `sha-28f96930907ec7150ed038f49daa635f8ed5fb91`.
-- GHCR package остаётся **Private**; публичны исходники, а не контейнерный пакет.
+- Актуальный проверенный HEAD на момент обновления: `d5a49d7`.
+- Последний полностью успешный pipeline: GitHub Actions run #52 — **Success**, jobs `quality` и `docker`.
+- Более поздние запуски #41–#51 были отменены механизмом concurrency при последовательных обновлениях документации; они не являются успешными проверками. Для актуального состояния требуется новый полный запуск CI после этого PR.
+- Run #52 собрал и опубликовал Docker image в GHCR с тегами `latest` и commit SHA. GHCR package остаётся **Private**; публичны исходники, а не контейнерный пакет.
+- Production-конфигурация и runtime smoke уже входят в основную ветку: Caddy, HTTPS-настройки Django, Compose overlay, сбор статики, миграции и проверка readiness/CSS через Nginx.
 
-Run #40 включал не только сборку: GitHub Actions запустил полный локальный Compose smoke-stack, применил миграции, проверил readiness и убедился, что CSS-файл собран и отдаётся через Nginx. Временные контейнеры и volumes CI после проверки удалены.
+Run #40 включал полный временный Compose smoke-stack в GitHub Actions: контейнер приложения запустился, миграции применились, readiness вернул 200, CSS-файл был найден в static volume и успешно отдан через Nginx. Временные контейнеры и volumes CI после проверки удалены.
 
 ## Подтверждённые результаты
 
@@ -22,21 +23,21 @@ Run #40 включал не только сборку: GitHub Actions запус
 | k6 | ~199,2 HTTP req/s, p95=13,19 мс, 0% HTTP-ошибок, 30 секунд | Авторизованные GET, одна тестовая сессия |
 | Backup/restore | `RESTORE_TEST_OK`, counts совпали, GiST constraint проверен | Временная БД в том же PostgreSQL-контейнере |
 | Мониторинг | Prometheus 3/3 targets UP; 5 правил проверены | Alertmanager `null-receiver`, реальные уведомления не доставляются |
-| CI quality | Ruff, Bandit, static audit, Django checks, deploy checks, migrations, collectstatic, pytest | Run #40 Success |
-| CI Docker | Compose/Caddy config, shell syntax, image build/push, runtime smoke | Run #40 Success |
-| Статика | Entrypoint запускает collectstatic; CSS отдаётся через Nginx в runtime smoke | Проверено в ephemeral CI Compose |
+| CI quality | Ruff, Bandit, static audit, Django checks, deploy checks, migrations, collectstatic, pytest | Run #52 Success |
+| CI Docker | Compose/Caddy config, shell syntax, image build/push, runtime smoke | Run #52 Success |
 | Production config | Caddy HTTPS overlay, secure Django settings, backup/restore scripts | В main; реальный VPS ещё не развёрнут |
 
 Подробные записи: `docs/USER_ACCEPTANCE_2026-11-19.md`, `docs/E2E_BROWSER_RUN.md`, `docs/LOADTEST_RESULTS_2026-11-19.md`, `docs/BACKUP_VALIDATION.md`, `docs/TESTING.md`.
 
 ## Что ещё требуется до полной сдачи и публичного запуска
 
-1. Получить VPS и домен, настроить DNS/firewall и выполнить реальный HTTPS deploy.
-2. Пройти внешний smoke-test сайта: вход, каталог, расписание, бронирование, конфликт, VIP, права, CSV, статические файлы и health endpoints.
-3. Настроить backup за пределы VPS и проверить восстановление на отдельной машине.
-4. Настроить реальный receiver Alertmanager, если это требуется для сдачи.
-5. При необходимости выполнить write workload и тест независимых сессий; 1000 пользователей не подтверждены.
-6. Завершить формальную приёмку, сохранить скриншоты и подготовить итоговый Word-отчёт ИСП49.
+1. Выполнить новый полный CI run для актуального кода после объединения PR.
+2. Получить VPS и домен, настроить DNS/firewall и выполнить реальный HTTPS deploy.
+3. Пройти внешний smoke-test сайта: вход, каталог, расписание, бронирование, конфликт, VIP, права, CSV, статические файлы и health endpoints.
+4. Настроить backup за пределы VPS и проверить восстановление на отдельной машине.
+5. Настроить реальный receiver Alertmanager, если это требуется для сдачи.
+6. При необходимости выполнить write workload и тест независимых сессий; 1000 пользователей не подтверждены.
+7. Завершить формальную приёмку, сохранить скриншоты и подготовить итоговый Word-отчёт ИСП49.
 
 ## Ограничения, которые нельзя скрывать
 
@@ -45,6 +46,7 @@ Run #40 включал не только сборку: GitHub Actions запус
 - SLA 99,9% требует длительного измерения.
 - Одна PostgreSQL база без репликации остаётся единой точкой отказа.
 - Alertmanager `null-receiver` не доставляет реальные уведомления.
-- Production-конфигурация и runtime smoke проверены, но публичный VPS и DNS ещё не настроены.
+- Production-конфигурация и runtime smoke проверены в CI, но публичный VPS и DNS ещё не настроены.
+- GHCR package приватный; для первого VPS-деплоя используйте сборку из публичного Git-репозитория, как описано в `docs/DEPLOYMENT.md`, либо отдельно измените видимость пакета.
 
 Подробная оценка: `docs/FINAL_READINESS_2026-11-20.md`; инструкция: `docs/DEPLOYMENT.md`.
