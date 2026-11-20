@@ -108,6 +108,7 @@ jobs:
       - name: Validate Alertmanager configurations
         run: |
           config_dir="$(mktemp -d)"
+          chmod 755 "$config_dir"
           trap 'rm -rf "$config_dir"' EXIT
           docker run --rm \
             -v "$PWD/scripts/render_alertmanager_config.py:/render.py:ro" \
