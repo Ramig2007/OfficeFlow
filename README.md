@@ -189,7 +189,7 @@ e2e/                        браузерный сценарий Playwright
 templates/                  страницы и авторизация
 static/                     оригинальная светлая дизайн-система
 infra/                      Nginx, Caddy, Prometheus, Grafana, Alertmanager
-scripts/                    PowerShell backup/restore, k6
+scripts/                    PowerShell и Linux backup, restore, k6
 .github/workflows/          CI и публикация Docker image в GHCR
 docs/                       матрица ИСП49, архитектура, эксплуатация, риски
 ```
