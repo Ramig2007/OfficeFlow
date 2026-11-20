@@ -7,7 +7,7 @@
 | Unit | pytest + Django test DB | временные интервалы, 1–4 часа, пересечения, VIP, отмена, роли | CI / локальный pytest |
 | Integration | DRF APIClient + PostgreSQL | REST 201/400/403/404/409, CSV, IDOR, audit, schedule API privacy | CI log / PR #12 regression test |
 | Concurrency | 2 threads + PostgreSQL | только одна запись на занятый слот | PostgreSQL CI |
-| Browser acceptance E2E | Playwright Chromium | 21 сценарий: login, UI, permissions, 375/768 px, booking lifecycle, VIP, room admin | `docs/VERIFICATION_2026-11-21.md` |
+| Browser acceptance E2E | Playwright Chromium | **27 сценариев**: регистрация, login/logout, роли, 375/768px, booking lifecycle, VIP, room admin, CSV filters | CI #117 и `docs/PILOT.md` |
 | Load | k6 | baseline/GET, 1000 отдельных логинов и 3750 изолированных create/edit/cancel циклов | `docs/LOADTEST_RESULTS_2026-11-19.md`, `docs/SCALE_RESULTS_2026-11-21.md` |
 | Static | Ruff, Bandit, structural audit | ошибки кода, распространённые security patterns, структура | GitHub Actions |
 | Django security | `manage.py check --deploy` | production security settings | GitHub Actions |
@@ -29,9 +29,10 @@
 10. production Compose validation, Caddyfile validation и shell syntax checks;
 11. Docker image build; push в GHCR выполняется только при push в `main`, с тегами `latest` и `sha-<commit>`;
 12. Runtime Compose smoke: app startup, migrations, readiness endpoint и фактическая отдача hashed CSS через Nginx;
-13. Создание demo fixtures в изолированной БД, сборка Playwright Chromium image, browser acceptance 21/21, загрузка screenshots artifact (7 дней);
+13. Создание demo fixtures в изолированной БД, сборка Playwright Chromium image, browser acceptance **27/27** в CI #117, загрузка screenshots artifact (7 дней);
 14. k6 write load с отдельными тестовыми сессиями (создание+отмена) на временной БД;
 15. PostgreSQL/Redis stop → readiness 503 → start → readiness 200;
+17. Реальная проверка PostgreSQL backup/restore в отдельный контейнер без сети и постоянного хранилища: **INDEPENDENT_RESTORE_OK** в CI #117;
 16. Валидация обеих конфигураций Alertmanager: null-receiver и HTTPS webhook.
 
 После merge PR #13 GitHub Actions main run #73 завершился успешно: jobs `quality` и `docker` — Success. Quality job подтвердил **62 passed** и coverage **91,67%** для `workspace.services` и `workspace.queries`. Docker job поднял временный Compose stack, применил миграции, проверил readiness и отдачу CSS через Nginx, создал изолированные demo fixtures и запустил Chromium browser smoke: **9/9 checks passed**. Скриншоты загружены как artifact `officeflow-browser-e2e`. Это проверяет приложение в ephemeral CI, но не выполняет публичный VPS deploy.
@@ -59,7 +60,7 @@ python manage.py makemigrations --check --dry-run
 
 ## Browser E2E
 
-Исторический Chromium smoke-run: 9/9 checks локально и main CI #73 (только чтение). **В PR run #93 уже 21/21 Chromium acceptance:** создание/редактирование/отмена брони, VIP approve/reject, создание/редактирование/деактивация комнаты, доступы/403, UI и проверка 375/768/1440 px. Изменения создаются только во временной CI-базе, после тестов она удаляется. Скриншоты: artifact `officeflow-browser-e2e`. См. `docs/VERIFICATION_2026-11-21.md`.
+Исторический Chromium smoke-run: 9/9 checks локально и main CI #73 (только чтение). **В PR run #93 проверено 21/21, а в PR run #117 — 27/27 Chromium acceptance:** создание/редактирование/отмена брони, VIP approve/reject, создание/редактирование/деактивация комнаты, доступы/403, UI и проверка 375/768/1440 px. Добавлены регистрация, logout, назначение и отзыв административной роли, а также CSV с фильтрами. Изменения создаются только во временной CI-базе, после тестов она удаляется. Скриншоты: artifact `officeflow-browser-e2e`. См. `docs/PILOT.md` и `docs/VERIFICATION_2026-11-21.md`.
 
 Отдельный `e2e/test_user_journey.py` создаёт и отменяет тестовую бронь; его следует запускать только на изолированной демонстрационной БД.
 
@@ -82,7 +83,7 @@ python manage.py makemigrations --check --dry-run
 
 ## Backup / restore
 
-Подтверждён `RESTORE_TEST_OK`: PostgreSQL dump восстановлен во временную БД в том же контейнере, количества users/rooms/bookings/audit_events/migrations совпали, GiST overlap constraint найден, временная БД удалена. См. `docs/BACKUP_VALIDATION.md`.
+Исторически подтверждён `RESTORE_TEST_OK` во временную БД в том же контейнере. **В PR CI #117 подтверждён также `INDEPENDENT_RESTORE_OK`**: SHA-256, восстановление в отдельный временный PostgreSQL-контейнер, сверка counts и GiST exclusion constraint, без изменения исходной БД. Это не off-host backup и не тест полного отказа физического сервера. См. `docs/BACKUP_VALIDATION.md`.
 
 Для VPS добавлен Linux backup script `scripts/backup.sh`; он проверяет читаемость архива и создаёт SHA-256. Для защиты от потери сервера backup нужно копировать в отдельное зашифрованное off-host хранилище.
 
