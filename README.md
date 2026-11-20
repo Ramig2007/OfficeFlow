@@ -103,7 +103,7 @@ docker compose down
 | Проблема | Что проверить |
 |---|---|
 | `DB_PASSWORD` не задан | `.env` создан и значение непустое |
-| Порт 8080 занят | Измените в `compose.yaml` `8080:80` на, например, `8088:80` |
+| Порт 8080 занят | Измените в `compose.yaml` `127.0.0.1:8080:80` на, например, `127.0.0.1:8088:80` |
 | Ошибка `relation ... does not exist` | Выполните `python manage.py migrate` в контейнере приложения |
 | `Invalid HTTP_HOST header` | В `ALLOWED_HOSTS` включён используемый адрес |
 | `CSRF verification failed` | В `CSRF_TRUSTED_ORIGINS` добавлен точный адрес с протоколом |
