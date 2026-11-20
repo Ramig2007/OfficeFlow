@@ -1,57 +1,50 @@
 # Сводка фактической готовности OfficeFlow — 20.11.2026
 
-## Состояние основной ветки до текущего PR
+## Основная ветка и CI
 
-Последняя проверенная версия `main` на момент аудита — commit `6dbb191`. GitHub Actions run #5 на этом commit завершился успешно: jobs `quality` и `docker`.
+- Репозиторий исходного кода: https://github.com/Ramig2007/OfficeFlow — публичный.
+- Основная ветка: `main`.
+- Последний проверенный commit: `28f9693`.
+- GitHub Actions run #40: **Success** — jobs `quality` и `docker`.
+- Docker image собран и опубликован в GHCR с тегами `latest` и `sha-28f96930907ec7150ed038f49daa635f8ed5fb91`.
+- GHCR package остаётся **Private**; публичны исходники, а не контейнерный пакет.
+
+Run #40 включал не только сборку: GitHub Actions запустил полный локальный Compose smoke-stack, применил миграции, проверил readiness и убедился, что CSS-файл собран и отдаётся через Nginx. Временные контейнеры и volumes CI после проверки удалены.
+
+## Подтверждённые результаты
 
 | Область | Факт | Статус / ограничение |
 |---|---|---|
-| Исходный код | Репозиторий `Ramig2007/OfficeFlow` публичный | Проверено в GitHub |
-| GHCR | `ghcr.io/ramig2007/officeflow:latest` опубликован | Пакет остаётся Private |
-| Контейнерный стек | Django, PostgreSQL, Redis и Nginx работали локально в Docker Compose | Проверено пользователем |
-| Функциональные тесты | 60/60 прошли в локальном прогоне | Исторический локальный прогон |
-| Покрытие критического кода | 91,67% для `workspace.services` и `workspace.queries` в CI | Не покрытие всего проекта |
-| Браузерное тестирование | Chromium/Playwright: 9/9 | Smoke-набор |
-| Пользовательская приёмка | 8/8 сценариев отмечены пользователем как УСПЕХ | Один пользователь, локальная среда |
-| Нагрузочное тестирование | k6: около 199,2 HTTP RPS, p95=13,19 мс, 0% HTTP-ошибок, 30 секунд | Авторизованные GET-запросы, одна тестовая сессия |
-| Backup/restore | `RESTORE_TEST_OK`, количество записей совпало во временной БД | Не отдельный сервер восстановления |
+| Пользовательская проверка | 8/8 сценариев отмечены пользователем как УСПЕХ | Один пользователь, локальная среда |
+| Django tests | 60/60 прошли в локальном прогоне | Локальный прогон |
+| Покрытие критического кода | 91,67% для `workspace.services` и `workspace.queries` | Не покрытие всего приложения |
+| Browser E2E | Playwright Chromium: 9/9 | Read-only smoke-набор |
+| k6 | ~199,2 HTTP req/s, p95=13,19 мс, 0% HTTP-ошибок, 30 секунд | Авторизованные GET, одна тестовая сессия |
+| Backup/restore | `RESTORE_TEST_OK`, counts совпали, GiST constraint проверен | Временная БД в том же PostgreSQL-контейнере |
 | Мониторинг | Prometheus 3/3 targets UP; 5 правил проверены | Alertmanager `null-receiver`, реальные уведомления не доставляются |
-| GitHub Actions | Run #5 на `6dbb191`: `quality` и `docker` — Success | Не доказывает публичный deploy |
+| CI quality | Ruff, Bandit, static audit, Django checks, deploy checks, migrations, collectstatic, pytest | Run #40 Success |
+| CI Docker | Compose/Caddy config, shell syntax, image build/push, runtime smoke | Run #40 Success |
+| Статика | Entrypoint запускает collectstatic; CSS отдаётся через Nginx в runtime smoke | Проверено в ephemeral CI Compose |
+| Production config | Caddy HTTPS overlay, secure Django settings, backup/restore scripts | В main; реальный VPS ещё не развёрнут |
 
-## Изменения в ветке подготовки VPS
+Подробные записи: `docs/USER_ACCEPTANCE_2026-11-19.md`, `docs/E2E_BROWSER_RUN.md`, `docs/LOADTEST_RESULTS_2026-11-19.md`, `docs/BACKUP_VALIDATION.md`, `docs/TESTING.md`.
 
-В ветке `finalize/hosting-readiness-20261120` подготовлены изменения для PR #1 ([Prepare OfficeFlow for secure VPS hosting](https://github.com/Ramig2007/OfficeFlow/pull/1)). Первоначальный CI run #6 завершился успешно (`quality` и `docker` — Success); после последующих документальных уточнений требуется повторный прогон. PR ещё не объединён в `main`:
-- production Compose overlay с Caddy и автоматическим HTTPS;
-- production env template;
-- локальный Nginx ограничен loopback;
-- HTTPS-схема от Caddy передаётся через Nginx в Django;
-- HSTS и secure cookie/redirect настройки;
-- сбор статических файлов при старте контейнера;
-- Linux backup script с проверкой архива и SHA-256;
-- CI дополнен Bandit, static audit, Django deploy checks, Compose/Caddy validation;
-- GitHub Actions обновлены до Node 24 совместимых major versions;
-- GHCR получает latest и commit-SHA tags при push в main;
-- Dependabot включён для pip и GitHub Actions.
+## Что ещё требуется до полной сдачи и публичного запуска
 
-**Кодовые изменения прошли CI run #6; после последних правок документации ожидается повторная проверка.** PR пока не объединён в `main`. Публичный VPS не развёрнут.
-
-## Что ещё требуется
-
-1. Дождаться CI на PR и проверить все jobs; затем объединить PR в main.
-2. Получить VPS и домен, настроить DNS и firewall, выполнить HTTPS deploy.
-3. Пройти внешнюю проверку сайта: вход, каталог, расписание, бронирование, конфликт, VIP, права, CSV, статические файлы и health endpoints.
-4. Настроить backup за пределы VPS и проверить восстановление на отдельной машине.
-5. Настроить реальный receiver Alertmanager, если это требуется для демонстрации.
-6. Завершить независимую/формальную приёмку и приложить скриншоты.
-7. Подготовить итоговый отчёт ИСП49 с честным разделением подтверждённых результатов и ограничений.
+1. Получить VPS и домен, настроить DNS/firewall и выполнить реальный HTTPS deploy.
+2. Пройти внешний smoke-test сайта: вход, каталог, расписание, бронирование, конфликт, VIP, права, CSV, статические файлы и health endpoints.
+3. Настроить backup за пределы VPS и проверить восстановление на отдельной машине.
+4. Настроить реальный receiver Alertmanager, если это требуется для сдачи.
+5. При необходимости выполнить write workload и тест независимых сессий; 1000 пользователей не подтверждены.
+6. Завершить формальную приёмку, сохранить скриншоты и подготовить итоговый Word-отчёт ИСП49.
 
 ## Ограничения, которые нельзя скрывать
 
 - 200 RPS измерены только для авторизованного чтения в течение 30 секунд.
 - Текущий прогон не доказывает 1000 одновременных пользователей или производительность записи.
 - SLA 99,9% требует длительного измерения.
-- Одна PostgreSQL база без репликации — единая точка отказа.
-- `null-receiver` не доставляет реальные уведомления.
-- Конфигурация VPS подготовлена, но хостинг не считается завершённым до фактического запуска и проверки.
+- Одна PostgreSQL база без репликации остаётся единой точкой отказа.
+- Alertmanager `null-receiver` не доставляет реальные уведомления.
+- Production-конфигурация и runtime smoke проверены, но публичный VPS и DNS ещё не настроены.
 
-Подробности: `docs/FINAL_READINESS_2026-11-20.md`, `docs/DEPLOYMENT.md`, `docs/USER_ACCEPTANCE_2026-11-19.md`, `docs/E2E_BROWSER_RUN.md`, `docs/LOADTEST_RESULTS_2026-11-19.md`, `docs/BACKUP_VALIDATION.md`.
+Подробная оценка: `docs/FINAL_READINESS_2026-11-20.md`; инструкция: `docs/DEPLOYMENT.md`.
