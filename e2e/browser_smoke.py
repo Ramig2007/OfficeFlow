@@ -141,7 +141,7 @@ def run() -> int:
             print("PASS 10: tablet catalogue (768px)")
 
             # Use a random, safely-future slot so reruns do not collide with demo fixtures.
-            test_day = date.today() + timedelta(days=30 + randbelow(100))
+            test_day = date.today() + timedelta(days=150 + randbelow(20))
             test_hour = 9 + randbelow(8)
             token = token_hex(3)
             booking_title = f"CI lifecycle {token}"
