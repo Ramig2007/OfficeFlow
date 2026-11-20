@@ -219,7 +219,7 @@ jobs:
             -e BASE_URL=http://proxy \
             -e K6_PASSWORD="$DEMO_PASSWORD" \
             -e K6_ROOM_ID="$room_id" \
-            -e TARGET_RPS=5 \
+            -e TARGET_RPS=8 \
             -e DURATION=30s \
             -v "$PWD/scripts/loadtest-booking-write.js:/scripts/loadtest-booking-write.js:ro" \
             grafana/k6:0.52.0 run /scripts/loadtest-booking-write.js
