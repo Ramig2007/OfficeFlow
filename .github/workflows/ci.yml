@@ -147,7 +147,7 @@ jobs:
           done
           test "$ready" -eq 1
           docker compose exec -T app python manage.py migrate --noinput
-          docker compose exec -T app sh -c 'find /app/staticfiles -type f -print -quit | grep -q .'
+          docker compose exec -T app python -c 'from pathlib import Path; assert any(p.is_file() for p in Path("/app/staticfiles").rglob("*"))'
           asset_path="$(docker compose exec -T app python -c 'from django.templatetags.static import static; print(static("css/app.css"))' | tr -d '\r')"
           case "$asset_path" in
             /static/*) ;;
