@@ -2,8 +2,8 @@
 
 **Дата проверки:** 20 ноября 2026 г.  
 **Репозиторий:** https://github.com/Ramig2007/OfficeFlow  
-**Основная ветка:** `main`, актуальный HEAD на момент проверки — `d5a49d7`.  
-**Последний полностью успешный CI:** GitHub Actions run #52 — jobs `quality` и `docker` Success. Запуски #41–#51 были отменены concurrency при быстрой последовательности обновлений; требуется новый полный pipeline после текущего PR.  
+**Основная ветка:** `main`; PR #8 с актуализацией readiness-документации объединён.  
+**Подтверждённый полный CI:** GitHub Actions run #58 для main commit `16f80f2` — jobs `quality` и `docker` Success. Runs #41–#51 были отменены concurrency при последовательных обновлениях; run #52 успешно проверил предыдущий main commit `d5a49d7`.  
 **Назначение:** учебная сдача ИСП49 и подготовка к последующему VPS-развёртыванию. Это не заключение о промышленной готовности.
 
 ## 1. Подтверждённое состояние
@@ -11,7 +11,7 @@
 | Область | Подтверждённый факт | Ограничение |
 |---|---|---|
 | Репозиторий | Публичный GitHub source repo | GHCR package Private |
-| CI | Run #52: quality + docker Success | Более поздние runs #41–#51 отменены; новый pipeline обязателен |
+| CI | Run #58: quality + docker Success | Runs #41–#51 отменены; run #58 подтвердил состояние main после PR #8 |
 | Docker runtime | Compose stack стартовал в CI, миграции применились, readiness 200, CSS отдался через Nginx | Ephemeral GitHub runner, не публичный сервер |
 | Django tests | 60/60 в локальном прогоне | Не считать это покрытием всех возможных сценариев |
 | Coverage | 91,67% для `workspace.services` и `workspace.queries` | Не покрытие всего репозитория |
