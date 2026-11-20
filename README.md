@@ -110,7 +110,7 @@ docker compose down
 | `503 /health/ready/` | Проверить `docker compose ps`, логи БД и Redis |
 | Ошибка миграции `btree_gist` | PostgreSQL должен разрешать `CREATE EXTENSION btree_gist`; используйте официальный образ БД |
 | Ошибка входа в демоаккаунт | `.env` `DEMO_PASSWORD` использовался **до** первого `seed_demo`; смените пароль через админку либо Django shell |
-| Нет оформления | Выполните `collectstatic`; проверить volume `staticfiles` и логи Nginx |
+| Нет оформления | Entrypoint автоматически запускает `collectstatic`; проверить `docker compose logs app`, volume `staticfiles` и логи Nginx |
 
 ## Подготовка к VPS-хостингу
 
