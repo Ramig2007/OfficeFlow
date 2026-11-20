@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
@@ -34,5 +35,9 @@ urlpatterns = [
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="api-schema"), name="swagger-ui"),
     path("health/live/", views.health_live, name="health-live"),
     path("health/ready/", views.health_ready, name="health-ready"),
-    path("", include("django_prometheus.urls")),
 ]
+
+# Internal Compose metrics are protected by Nginx. Render serves Gunicorn directly,
+# so do not expose potentially sensitive /metrics on the public Internet.
+if getattr(settings, "OFFICEFLOW_EXPOSE_METRICS", True):
+    urlpatterns.append(path("", include("django_prometheus.urls")))
