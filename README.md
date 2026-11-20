@@ -114,7 +114,7 @@ docker compose down
 
 ## Подготовка к VPS-хостингу
 
-Production-конфигурация находится в `compose.production.yaml`, шаблон переменных — в `.env.production.example`, подробная инструкция — [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Для публичного запуска нужны VPS и домен; до фактической настройки DNS, HTTPS, firewall и внешнего backup сайт не считается размещённым в Интернете.
+Production-конфигурация уже находится в основной ветке: `compose.production.yaml`, шаблон переменных — `.env.production.example`, подробная инструкция — [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Для публичного запуска нужны VPS и домен; до фактической настройки DNS, HTTPS, firewall и внешнего backup сайт не считается размещённым в Интернете.
 
 Локальный Compose публикует Nginx только на `127.0.0.1:8080`. Для VPS используйте оба файла Compose и Caddy; не открывайте внутренние порты приложения, PostgreSQL, Redis и мониторинга.
 
