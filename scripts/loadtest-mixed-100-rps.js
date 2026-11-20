@@ -5,7 +5,7 @@ import http from 'k6/http';
 import { check, fail } from 'k6';
 import { Counter } from 'k6/metrics';
 
-const baseURL = (__ENV.BASE_URL || 'http://proxy').replace(/\\/+$/, '');
+const baseURL = (__ENV.BASE_URL || 'http://proxy').replace(/\/+$/, '');
 const password = __ENV.K6_PASSWORD || '';
 const userPrefix = __ENV.K6_USER_PREFIX || 'loadtest';
 const roomId = Number(__ENV.K6_ROOM_ID || 0);
@@ -63,7 +63,7 @@ function authenticate() {
     return null;
   }
 
-  const tokenMatch = loginPage.body.match(/name=["']csrfmiddlewaretoken["']\\s+value=["']([^"']+)["']/);
+  const tokenMatch = loginPage.body.match(/name=["']csrfmiddlewaretoken["']\s+value=["']([^"']+)["']/);
   if (!tokenMatch) {
     loginFailures.add(1);
     return null;
