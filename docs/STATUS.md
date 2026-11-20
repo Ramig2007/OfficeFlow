@@ -4,13 +4,13 @@
 
 - Репозиторий исходного кода: https://github.com/Ramig2007/OfficeFlow — публичный.
 - Основная ветка: `main`.
-- Актуальный проверенный HEAD на момент обновления: `d5a49d7`.
-- Последний полностью успешный pipeline: GitHub Actions run #52 — **Success**, jobs `quality` и `docker`.
-- Более поздние запуски #41–#51 были отменены механизмом concurrency при последовательных обновлениях документации; они не являются успешными проверками. Для актуального состояния требуется новый полный запуск CI после этого PR.
-- Run #52 собрал и опубликовал Docker image в GHCR с тегами `latest` и commit SHA. GHCR package остаётся **Private**; публичны исходники, а не контейнерный пакет.
+- PR #8 с актуализацией документации объединён в `main`.
+- Подтверждённый полный pipeline: GitHub Actions run #58 для main commit `16f80f2` — **Success**, jobs `quality` и `docker`.
+- Запуски #41–#51 были отменены механизмом concurrency при последовательных обновлениях документации; run #52 успешно проверил предыдущий main commit `d5a49d7`, а run #58 подтвердил последующее состояние main после объединения PR #8.
+- Run #58 собрал и опубликовал Docker image в GHCR с тегами `latest` и commit SHA. GHCR package остаётся **Private**; публичны исходники, а не контейнерный пакет.
 - Production-конфигурация и runtime smoke уже входят в основную ветку: Caddy, HTTPS-настройки Django, Compose overlay, сбор статики, миграции и проверка readiness/CSS через Nginx.
 
-Run #40 включал полный временный Compose smoke-stack в GitHub Actions: контейнер приложения запустился, миграции применились, readiness вернул 200, CSS-файл был найден в static volume и успешно отдан через Nginx. Временные контейнеры и volumes CI после проверки удалены.
+Docker job run #58 включал полный временный Compose smoke-stack в GitHub Actions: контейнер приложения запустился, миграции применились, readiness вернул 200, CSS-файл был найден в static volume и успешно отдан через Nginx. Временные контейнеры и volumes CI после проверки удалены.
 
 ## Подтверждённые результаты
 
@@ -23,8 +23,8 @@ Run #40 включал полный временный Compose smoke-stack в Gi
 | k6 | ~199,2 HTTP req/s, p95=13,19 мс, 0% HTTP-ошибок, 30 секунд | Авторизованные GET, одна тестовая сессия |
 | Backup/restore | `RESTORE_TEST_OK`, counts совпали, GiST constraint проверен | Временная БД в том же PostgreSQL-контейнере |
 | Мониторинг | Prometheus 3/3 targets UP; 5 правил проверены | Alertmanager `null-receiver`, реальные уведомления не доставляются |
-| CI quality | Ruff, Bandit, static audit, Django checks, deploy checks, migrations, collectstatic, pytest | Run #52 Success |
-| CI Docker | Compose/Caddy config, shell syntax, image build/push, runtime smoke | Run #52 Success |
+| CI quality | Ruff, Bandit, static audit, Django checks, deploy checks, migrations, collectstatic, pytest | Run #58 Success |
+| CI Docker | Compose/Caddy config, shell syntax, image build/push, runtime smoke | Run #58 Success |
 | Production config | Caddy HTTPS overlay, secure Django settings, backup/restore scripts | В main; реальный VPS ещё не развёрнут |
 
 Подробные записи: `docs/USER_ACCEPTANCE_2026-11-19.md`, `docs/E2E_BROWSER_RUN.md`, `docs/LOADTEST_RESULTS_2026-11-19.md`, `docs/BACKUP_VALIDATION.md`, `docs/TESTING.md`.
