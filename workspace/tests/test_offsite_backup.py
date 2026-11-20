@@ -145,3 +145,15 @@ def test_offsite_backup_requires_kms_key_when_kms_selected(mocked_backup_environ
     )
     assert result.returncode != 0
     assert "Set OFFSITE_S3_KMS_KEY_ID" in result.stderr
+
+
+def test_offsite_backup_script_passes_bash_syntax_check():
+    result = subprocess.run(
+        ["bash", "-n", str(ROOT / "scripts/backup-offsite.sh")],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
