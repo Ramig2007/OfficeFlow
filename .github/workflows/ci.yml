@@ -58,6 +58,8 @@ jobs:
         run: python scripts/static_audit.py
       - name: Django checks
         run: python manage.py check
+      - name: Validate OpenAPI schema
+        run: python manage.py spectacular --validate --fail-on-warn
       - name: Django production security checks
         env:
           DEBUG: "0"

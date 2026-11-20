@@ -11,6 +11,7 @@ from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
+from drf_spectacular.utils import OpenApiTypes, extend_schema, inline_serializer
 
 from workspace.models import Booking, Room, User
 from workspace.queries import booking_report, export_csv, report_summary, safe_parse_date
@@ -218,6 +219,16 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ScheduleAPI(APIView):
+    @extend_schema(
+        responses=inline_serializer(
+            name="ScheduleResponse",
+            fields={
+                "from": serializers.DateField(),
+                "to": serializers.DateField(),
+                "bookings": BookingSerializer(many=True),
+            },
+        )
+    )
     def get(self, request):
         date = safe_parse_date(request.query_params.get("date", "")) or timezone.localdate()
         end = date + timedelta(days=6)
@@ -237,6 +248,18 @@ class ScheduleAPI(APIView):
 class ReportSummaryAPI(APIView):
     permission_classes = [IsOfficeAdmin]
 
+    @extend_schema(
+        responses=inline_serializer(
+            name="ReportSummaryResponse",
+            fields={
+                "total": serializers.IntegerField(),
+                "confirmed": serializers.IntegerField(),
+                "pending": serializers.IntegerField(),
+                "cancelled": serializers.IntegerField(),
+                "rejected": serializers.IntegerField(),
+            },
+        )
+    )
     def get(self, request):
         return Response(report_summary(booking_report(request)))
 
@@ -244,6 +267,7 @@ class ReportSummaryAPI(APIView):
 class ExportAPI(APIView):
     permission_classes = [IsOfficeAdmin]
 
+    @extend_schema(responses={(200, "text/csv"): OpenApiTypes.BINARY})
     def get(self, request):
         audit(request.user, "report.exported", "api/bookings")
         return export_csv(booking_report(request))
