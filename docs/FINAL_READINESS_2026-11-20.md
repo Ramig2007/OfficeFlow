@@ -1,9 +1,9 @@
 # OfficeFlow — актуальная оценка готовности
 
-**Дата проверки:** 20 ноября 2026 г.  
+**Дата проверки:** 21 ноября 2026 г.  
 **Репозиторий:** https://github.com/Ramig2007/OfficeFlow  
-**Основная ветка:** `main`; PR #8, #9, #10, #12 и #13 объединены. PR #13 — commit `1ee676b`.  
-**Последний полный CI:** main run #73 для commit `1ee676b` завершился Success в обоих jobs (`quality`, `docker`): 62 pytest passed, coverage 91,67%, Chromium E2E 9/9. 
+**Основная ветка:** `main`; PR #8, #9, #10, #12, #13 и #16 объединены. PR #16 — merge commit `f9a1957`.  
+**Подтверждённый CI актуальной функциональности:** PR run #93 для head `3ea612d` завершился Success в обоих jobs (`quality`, `docker`): 62 pytest passed, coverage 91,67%, Chromium E2E 21/21, k6 write load и PostgreSQL/Redis fault recovery. Исторический main run #73 также Success. Проверки самого merge commit следует смотреть в GitHub Actions. 
 **Назначение:** учебная сдача ИСП49 и подготовка к последующему VPS-развёртыванию. Это не заключение о промышленной готовности.
 
 ## 1. Подтверждённое состояние
@@ -11,15 +11,16 @@
 | Область | Подтверждённый факт | Ограничение |
 |---|---|---|
 | Репозиторий | Публичный GitHub source repo | GHCR package Private |
-| CI | Main run #73: quality + docker Success | Подтверждает состояние main после PR #13; включает browser smoke 9/9 |
+| CI | PR run #93: quality + docker Success, 62 pytest | Код PR #16 объединён в main commit f9a1957; тесты были до merge |
 | Docker runtime | Compose stack стартовал в CI, миграции применились, readiness 200, CSS отдался через Nginx | Ephemeral GitHub runner, не публичный сервер |
 | Django tests | 60/60 в локальном прогоне пользователя; 62 passed в main CI run #73 | Не считать это покрытием всех возможных сценариев |
 | Coverage | 91,67% для `workspace.services` и `workspace.queries` | Не покрытие всего репозитория |
-| Browser E2E | Playwright Chromium 9/9 локально и в main CI run #73; screenshots artifact uploaded | Read-only smoke |
+| Browser E2E | Playwright Chromium 21/21 в PR CI #93, screenshots uploaded | Временная CI-база, не публичный хост |
 | User acceptance | 8/8 сценариев — УСПЕХ | Один пользователь, локальный стенд |
-| k6 | 200 RPS read-only, ~199,2 HTTP req/s, p95=13,19 мс, 0% HTTP errors, 30 секунд | Одна сессия, GET only |
+| k6 read | 200 RPS read-only, ~199,2 HTTP req/s, p95=13,19 мс, 0% HTTP errors, 30 секунд | Одна сессия, GET only |
+| k6 write | 240 циклов create/cancel, 720/720 checks, 0 ошибок/пропусков, p95 16,92 мс | До 11 активных VU, 30 секунд, 8 целевых циклов/с; не 1000 пользователей |
 | Backup/restore | `RESTORE_TEST_OK`, counts совпали, GiST constraint проверен | Restore в том же PostgreSQL контейнере |
-| Monitoring | Prometheus targets 3/3 UP, 5 rules validated | Alertmanager null receiver |
+| Monitoring | Prometheus targets 3/3 UP, 5 rules validated; CI #93 проверил optional HTTPS webhook config | Доставка реальным адресатам пока не проверена |
 | API privacy | Общий schedule API ограничен календарными полями; тест подтверждает отсутствие внутренних заметок и данных владельца | PR #12; CI run #66 прошёл до merge |
 | Production settings | HSTS, HTTPS redirect, secure cookies, explicit host/CSRF checks, fail-fast guards | Требуется настоящий домен и VPS |
 | Backup tooling | Linux backup и temporary restore scripts добавлены | На VPS ещё не выполнялись |
@@ -51,7 +52,7 @@ Production-readiness изменения объединены в основную
 | P1 | Внешний smoke-test | Проверить сайт по публичному HTTPS домену после размещения |
 | P2 | Backup вне VPS | Настроить зашифрованную копию в отдельном хранилище и проверить restore на отдельной машине |
 | P2 | Alertmanager | Настроить и проверить реального получателя, если это требуется для сдачи |
-| P2 | Write load | Отдельный изолированный сценарий создания/редактирования/отмены брони |
+| Закрыт частично | Write load | Создание+отмена проверены при 8 циклах/с и до 11 VU; отдельная нагрузка на редактирование не выполнялась |
 | P3 | 1000 пользователей | Отдельный распределённый тест с независимыми сессиями |
 | P3 | SLA 99,9% | Длительный мониторинг; короткий локальный тест SLA не доказывает |
 
@@ -70,6 +71,6 @@ Production-readiness изменения объединены в основную
 
 ## 5. Итог
 
-На имеющихся доказательствах OfficeFlow готов к учебной демонстрации ключевых пользовательских функций на локальном Docker-стенде. CI проверяет Django, безопасность, production-конфигурацию и фактический запуск контейнерного стека со статическими файлами. Дополнительное исправление приватности API расписания прошло оба CI job и объединено в `main`.
+На имеющихся доказательствах OfficeFlow готов к учебной демонстрации ключевых пользовательских функций на локальном Docker-стенде; расширенный CI #93 подтвердил 21/21 браузерных сценариев и восстановление readiness после отказа зависимостей. CI проверяет Django, безопасность, production-конфигурацию и фактический запуск контейнерного стека со статическими файлами. Дополнительное исправление приватности API расписания прошло оба CI job и объединено в `main`.
 
-**Не заявлять** доказанный SLA 99,9%, работу при 1000 одновременных пользователях, производительность записи под нагрузкой или промышленную готовность до соответствующих измерений и эксплуатации.
+**Не заявлять** доказанный SLA 99,9%, работу при 1000 одновременных пользователях, 100/200 RPS операций записи или промышленную готовность. Подтверждена лишь конкретная короткая нагрузка создания/отмены. Подробности: `docs/VERIFICATION_2026-11-21.md`.
