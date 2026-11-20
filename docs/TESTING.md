@@ -28,13 +28,14 @@
 9. pytest с coverage gate ≥70% для `workspace.services` и `workspace.queries`;
 10. production Compose validation, Caddyfile validation и shell syntax checks;
 11. Docker image build; push в GHCR выполняется только при push в `main`, с тегами `latest` и `sha-<commit>`;
-12. Runtime Compose smoke: app startup, migrations, readiness endpoint и фактическая отдача hashed CSS через Nginx.
+12. Runtime Compose smoke: app startup, migrations, readiness endpoint и фактическая отдача hashed CSS через Nginx;
+13. Создание demo fixtures в изолированной БД, сборка Playwright Chromium image, browser smoke 9/9 через Compose network и загрузка screenshots artifact (7 дней).
 
-Подтверждённый полный main run #63 завершился успешно: jobs `quality` и `docker` — Success. Дополнительно PR #12 с исправлением приватности общего API расписания прошёл полный run #66: оба job завершились Success до merge commit `6a9fe11`. Docker job включает Compose runtime smoke, миграции, readiness и отдачу CSS через Nginx. Это проверяет контейнерный runtime в ephemeral CI, но не выполняет публичный VPS deploy.
+После merge PR #13 GitHub Actions main run #73 завершился успешно: jobs `quality` и `docker` — Success. Quality job подтвердил **62 passed** и coverage **91,67%** для `workspace.services` и `workspace.queries`. Docker job поднял временный Compose stack, применил миграции, проверил readiness и отдачу CSS через Nginx, создал изолированные demo fixtures и запустил Chromium browser smoke: **9/9 checks passed**. Скриншоты загружены как artifact `officeflow-browser-e2e`. Это проверяет приложение в ephemeral CI, но не выполняет публичный VPS deploy.
 
 ## Unit и integration tests
 
-Локальный прогон пользователя: **60/60 pytest passed**. В CI coverage для `workspace.services` и `workspace.queries` ранее составило **91,67%** при пороге 70%. Это покрытие двух указанных критических модулей, не всего приложения.
+Локальный прогон пользователя до последних regression tests: **60/60 pytest passed**. Main CI run #73: **62 passed**, coverage `workspace.services` и `workspace.queries` — **91,67%** при пороге 70%. Это покрытие двух указанных критических модулей, не всего приложения.
 
 Команды локального прогона (использовать тестовую БД, не рабочие данные):
 
@@ -53,7 +54,7 @@ python manage.py makemigrations --check --dry-run
 
 ## Browser E2E
 
-Подтверждён локальный Playwright Chromium smoke-run: **9/9 checks passed**. Он проверяет анонимный редирект, вход, dashboard, карточку комнаты, VIP filter, расписание, историю, 403 на административные маршруты и мобильный каталог. Прогон read-only и не меняет бронирования. Подробности и команды: `docs/E2E_BROWSER_RUN.md`.
+Playwright Chromium smoke-run: **9/9 checks passed** локально и в main CI run #73. Он проверяет анонимный редирект, вход, dashboard, карточку комнаты, VIP filter, расписание, историю, 403 на административные маршруты и мобильный каталог. Прогон read-only и не меняет бронирования. CI загружает screenshots artifact `officeflow-browser-e2e`. Подробности и команды: `docs/E2E_BROWSER_RUN.md`.
 
 Отдельный `e2e/test_user_journey.py` создаёт и отменяет тестовую бронь; его следует запускать только на изолированной демонстрационной БД.
 

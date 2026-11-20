@@ -30,6 +30,16 @@ No bookings or users were modified.
 
 Эти файлы создаются в локальной папке `e2e/artifacts/` и исключены из Git. Их нужно приложить к итоговому отчёту вручную, если они сохранились на компьютере.
 
+## Автоматический прогон в GitHub Actions — 20.11.2026
+
+PR #13 добавил Playwright Chromium smoke в Docker job CI. Main run #73 после merge PR #13 завершился успешно:
+- jobs `quality` и `docker` — **Success**;
+- browser smoke — **9/9 checks passed**;
+- проверены анонимный редирект, вход сотрудника, dashboard, карточка комнаты, VIP-фильтр, расписание, история, 403 для административных маршрутов и мобильный каталог;
+- screenshot artifact `officeflow-browser-e2e` успешно загружен (retention 7 дней).
+
+CI использует отдельный временный Compose stack и тестовую PostgreSQL базу. Demo fixtures создаются только в этом окружении; после проверки контейнеры и volumes удаляются. Пароль demo employee передаётся только тестовому процессу как CI-only значение. Browser smoke не меняет бронирования.
+
 ## Запуск из PowerShell (в папке OfficeFlow)
 
 1. Убедиться, что рабочий сайт запущен и `docker compose ps app` показывает `healthy`.

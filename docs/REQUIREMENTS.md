@@ -27,7 +27,7 @@
 | 1.2 | IDE + линтер + форматер | `.vscode/`, `pyproject.toml`, Ruff | конфигурация |
 | 1.3 | Репозиторий Git | публичный `Ramig2007/OfficeFlow`, README и `.gitignore` | Проверено в GitHub |
 | 1.4 | Окружение с app, БД, Redis | `compose.yaml`, `Dockerfile`; локальный стек работал, app healthy | Проверено локально |
-| 1.5 | CI: сборка, тесты, стиль | `.github/workflows/ci.yml`; main run #63 и PR run #66 для security fix | Main quality + docker Success; PR #12 quality + docker Success до merge |
+| 1.5 | CI: сборка, тесты, стиль | `.github/workflows/ci.yml`; main run #73 | Quality + Docker + runtime Compose smoke + Chromium E2E 9/9 — Success |
 | 1.6 | Доступный Docker-образ | `ghcr.io/ramig2007/officeflow:latest` опубликован | Пакет Private; публичная доступность не подтверждена |
 
 ## 2. Разработка программного кода
@@ -42,7 +42,7 @@
 | 2.6 | Конфликт и конкурентность | `0002_postgres_overlap_guard`, `test_concurrent_booking_only_one_wins` | Проверено в PostgreSQL CI |
 | 2.7 | Лог действий, ошибки | `AuditEvent`, `LOGGING`, REST 400/403/404/409 | код |
 | 2.8 | ≥70% строк критических модулей | pytest-cov для `workspace.services` + `workspace.queries` | 91,67% в CI; не покрытие всего приложения |
-| 2.9 | Приватность общего API расписания | `ScheduleBookingSerializer`; тест проверяет отсутствие notes, creator, reviewer и rejection metadata | PR #12; run #66 quality + docker Success; merge commit `6a9fe11` |
+| 2.9 | Приватность общего API расписания | `ScheduleBookingSerializer`; тест проверяет отсутствие notes, creator, reviewer и rejection metadata | PR #12; run #66 и main run #73 Success; merge commit `6a9fe11` |
 
 ## 3. Состав оборудования и ПО
 
@@ -85,10 +85,10 @@
 | 6.1 | Unit бизнес-логики | `test_booking_service.py` | Локально 60/60 тестов прошли |
 | 6.2 | Integration API + PostgreSQL | `test_http_api.py`, PostgreSQL service в CI | CI quality прошёл успешно |
 | 6.3 | Проверка транзакций/конкурентности | `test_concurrent_booking_only_one_wins` | Запущен в PostgreSQL CI, job прошёл |
-| 6.4 | E2E сценарии | `e2e/browser_smoke.py` (Playwright Chromium) | 9/9 smoke checks прошли; read-only сценарий |
+| 6.4 | E2E сценарии | `e2e/browser_smoke.py` (Playwright Chromium), автоматически запускается в Docker CI | 9/9 smoke checks прошли локально и в main CI run #73; screenshots artifact загружен; read-only сценарий |
 | 6.5 | Load JMeter/k6 | `scripts/loadtest.js`, `scripts/loadtest-auth-read.js` | Прогоны 100/200 RPS baseline и 150/200 RPS read-only выполнены |
-| 6.6 | Статический анализ | Ruff, Bandit, static audit, Django `check`, `check --deploy` и OpenAPI schema validation | Main run #63 и PR run #66 прошли quality job |
-| 6.7 | ≥70% покрытия | CI gate на `workspace.services` + `workspace.queries` | 91,67% в CI, порог выполнен |
+| 6.6 | Статический анализ | Ruff, Bandit, static audit, Django `check`, `check --deploy` и OpenAPI schema validation | Main run #73 прошёл quality job |
+| 6.7 | ≥70% покрытия | CI gate на `workspace.services` + `workspace.queries` | 91,67% в main run #73; 62 pytest passed, порог выполнен |
 | 6.8 | Дефект-реестр с приоритетами | `docs/DEFECT_LOG_2026-11-19.md` и `docs/PILOT.md` | Исправления и открытые ограничения задокументированы; формальный issue tracker не обязателен для локального протокола |
 
 ## 7. Проектная документация
@@ -108,7 +108,7 @@
 | ID | Обязательный пункт | Реализация/результат | Статус |
 |---|---|---|---|
 | 8.1 | Демостенд | локальный Docker Compose и `seed_demo` | Проверено локально; публичный VPS не развёрнут |
-| 8.2 | Реалистичные тестовые данные | `seed_demo` комнаты/встречи | код |
+| 8.2 | Реалистичные тестовые данные | `seed_demo` создаёт комнаты/встречи и инициализирует пароль новых demo-пользователей из `DEMO_PASSWORD` | Код и regression tests; используется только в DEBUG=1 |
 | 8.3 | Чеклист сценариев | `PILOT.md`, пользовательская приёмка | 8/8 ручных сценариев; полный 18-пунктовый чек-лист частичный |
 | 8.4 | Трекер ошибок (шаги/скриншоты/логи) | `docs/DEFECT_LOG_2026-11-19.md`, E2E artifacts локально; в Word-отчёте предусмотрены 9 мест и инструкция для скриншотов сайта | Реестр есть; фактические скриншоты ещё нужно вставить |
 | 8.5 | Performance/Security/UX | `TESTING.md`, k6 read-only, Bandit, E2E mobile | Частично; нет DAST, write load, полного viewport matrix |
@@ -117,4 +117,4 @@
 
 ## Критерий финального закрытия
 
-Уже подтверждены локальный Docker стенд, 60/60 pytest, 91,67% покрытия двух критических модулей, PostgreSQL concurrency CI, 9/9 read-only Playwright checks, 8/8 ручных пользовательских сценариев, краткий read-only k6 тест, backup/restore во временную БД и исправление приватности API расписания (PR #12, run #66). До полного закрытия ИСП49 остаются: VPS deploy и внешний HTTPS smoke-test (если хостинг обязателен), off-host backup, фактический receiver Alertmanager (если требуется), write workload/большая нагрузка при необходимости, формальная приёмка, скриншоты и итоговый Word-отчёт. SLA 99,9% и 1000 пользователей не заявлять без соответствующих измерений.
+Уже подтверждены локальный Docker стенд, 60/60 pytest в раннем локальном прогоне, 62 pytest в main CI run #73, 91,67% покрытия двух критических модулей, PostgreSQL concurrency CI, 9/9 read-only Playwright checks в CI, 8/8 ручных пользовательских сценариев, краткий read-only k6 тест, backup/restore во временную БД и исправление приватности API расписания (PR #12). До полного закрытия ИСП49 остаются: VPS deploy и внешний HTTPS smoke-test (если хостинг обязателен), off-host backup, фактический receiver Alertmanager (если требуется), write workload/большая нагрузка при необходимости, формальная приёмка, скриншоты и итоговый Word-отчёт. SLA 99,9% и 1000 пользователей не заявлять без соответствующих измерений.
