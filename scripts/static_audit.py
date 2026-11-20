@@ -45,6 +45,8 @@ required = [
     "workspace/services.py", "workspace/api.py", "workspace/migrations/0002_postgres_overlap_guard.py",
     "static/css/app.css", "static/js/app.js", "scripts/loadtest.js",
     "docs/REQUIREMENTS.md", "docs/PILOT.md", "infra/grafana/dashboards/officeflow.json",
+    ".env.production.example", "compose.production.yaml", "docker-entrypoint.sh",
+    "infra/caddy/Caddyfile", "scripts/backup.sh", "scripts/test-restore.sh",
 ]
 for rel in required:
     if not (ROOT / rel).is_file():

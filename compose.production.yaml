@@ -1,0 +1,38 @@
+# Public VPS overlay. Keep compose.yaml as the common application stack.
+# Run: docker compose -f compose.yaml -f compose.production.yaml up -d --build
+services:
+  app:
+    environment:
+      DEBUG: "0"
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:?Set ALLOWED_HOSTS in .env}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:?Set CSRF_TRUSTED_ORIGINS in .env}
+      COOKIE_SECURE: "1"
+      SECURE_SSL_REDIRECT: "1"
+      SECURE_HSTS_SECONDS: "31536000"
+      SECURE_HSTS_INCLUDE_SUBDOMAINS: "0"
+      SECURE_HSTS_PRELOAD: "0"
+      SECURE_REFERRER_POLICY: same-origin
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      proxy:
+        condition: service_started
+    networks:
+      - internal
+
+volumes:
+  caddy_data:
+  caddy_config:

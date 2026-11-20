@@ -50,12 +50,22 @@ docker compose exec db pg_isready -U officeflow -d officeflow
 .\scripts\restore.ps1 -BackupFile .\backups\officeflow-YYYYMMDD-HHmmss.dump
 ```
 
+Для Linux/VPS предусмотрены `scripts/backup.sh` и `scripts/test-restore.sh`:
+
+```bash
+bash scripts/backup.sh
+bash scripts/test-restore.sh backups/officeflow-YYYYMMDDTHHMMSSZ.dump
+```
+
+Первый скрипт создаёт custom-format dump, проверяет его читаемость через `pg_restore --list` и сохраняет переносимый SHA-256. Второй восстанавливает архив во временную БД, сверяет counts основных таблиц и наличие GiST exclusion constraint, затем удаляет временную БД. Исходная БД используется только для чтения. Архив и checksum всё равно нужно копировать в отдельное зашифрованное хранилище за пределами VPS.
+
 **Внимание:** `restore.ps1` передаёт дамп во временный файл контейнера PostgreSQL и вызывает `pg_restore --clean`. Эта операция меняет существующую БД. На продуктивной системе следует остановить запись/перевести приложение в maintenance, согласовать восстановление и верифицировать referential integrity после него. Скрипт рассчитан на простую локальную учебную среду; полноценный DR runbook должен учитывать последовательность отключения сервисов, повторный запуск, ротацию секретов и rollback.
 
 ## Безопасность
 
 - `DEBUG=0` и длинный случайный `SECRET_KEY`; любой `.env` держать вне Git и с ограниченными правами.
-- Реальный HTTPS завершается на внешнем TLS reverse proxy; после настройки выставить `COOKIE_SECURE=1`, `SECURE_SSL_REDIRECT=1`, корректные `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`; настроить HSTS только после полной проверки HTTPS.
+- Для VPS используется `compose.production.yaml` с Caddy: он принимает 80/443, получает TLS-сертификат и проксирует запросы во внутренний Nginx. Nginx привязан к loopback на 8080 и передаёт `X-Forwarded-Proto` от Caddy в Django.
+- Production overlay принудительно включает `DEBUG=0`, secure cookies, HTTPS redirect и HSTS. Заполнить `DOMAIN`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` и уникальные секреты в серверном `.env`; не коммитить его.
 - Пользователь с `role=member` не получает доступ к админским данным; Django auth проверяет пароль с безопасными hashers.
 - Никаких production credentials в `seed_demo`; демо отключено при `DEBUG=0`.
 - Для пользователей с доступом к данным ограничивать retention audit logs; выполнять бэкапы с шифрованием. CSV может содержать названия корпоративных встреч и имена пользователей.
@@ -73,6 +83,10 @@ docker compose exec db pg_isready -U officeflow -d officeflow
 4. Для ошибок 409 конфликтов: это ожидаемая бизнес-ошибка, не 5xx. Исследовать несоразмерный рост отдельно.
 5. Исправить, добавить регрессионный тест, перезапустить сервис с минимальным влиянием.
 6. Сохранить хронологию инцидента: обнаружение, причина, ущерб, исправление, время восстановления и профилактика.
+
+## Production deployment
+
+Пошаговая инструкция DNS, firewall, HTTPS, создания администратора, проверки health endpoints и off-host backup находится в [`DEPLOYMENT.md`](DEPLOYMENT.md). Подготовленная конфигурация сама по себе не означает, что сайт уже размещён на публичном VPS.
 
 ## Ограничения демонстрационного стенда
 

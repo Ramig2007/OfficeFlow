@@ -1,5 +1,6 @@
 .git
 .env
+.env.*
 .venv
 __pycache__
 *.pyc
@@ -8,4 +9,16 @@ __pycache__
 .ruff_cache
 .coverage
 backups
+*.dump
+*.bak
 staticfiles
+e2e
+workspace/tests
+docs
+scripts
+.github
+.vscode
+README*
+compose*.yaml
+requirements-dev.txt
+requirements-e2e.txt

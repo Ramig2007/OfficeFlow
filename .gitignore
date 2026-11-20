@@ -6,13 +6,16 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
+
 # Django secrets/database/storage
 .env
 .env.*
 !.env.example
+!.env.production.example
 *.sqlite3
 media/
 staticfiles/
+
 # IDE and OS
 .vscode/*
 !.vscode/extensions.json
@@ -20,14 +23,11 @@ staticfiles/
 .idea/
 .DS_Store
 Thumbs.db
-# Backups/exports
+
+# Backups and local test artifacts
 backups/
 *.sql.gz
-
-# Local environment and test artifacts
-.env
-backups/
-e2e/artifacts/
-*.bak
 *.dump
+*.bak
+e2e/artifacts/
 compose.override.yaml

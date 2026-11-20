@@ -1,8 +1,8 @@
 # OfficeFlow
 
-**OfficeFlow** — учебное веб-приложение для бронирования переговорных, построенное вокруг недельного расписания. Отдельный проект, не основанный на MeetingRoomBooking. Язык интерфейса: русский. Стек: Django 5.2 LTS, PostgreSQL, Redis, Django REST Framework, Nginx, Docker Compose, Prometheus, Grafana.
+**OfficeFlow** — учебное веб-приложение для бронирования переговорных, построенное вокруг недельного расписания. Отдельный проект, не основанный на MeetingRoomBooking. Язык интерфейса: русский. Стек: Django 5.2 LTS, PostgreSQL, Redis, Django REST Framework, Nginx, Caddy (production TLS), Docker Compose, Prometheus, Grafana.
 
-> **Статус на 19.11.2026:** приложение проверено локально в Docker, автоматическими Django- и Playwright-тестами, нагрузочным сценарием авторизованного чтения до 200 RPS; проверены резервная копия и восстановление PostgreSQL. GitHub Actions (`quality`, `docker`) успешно завершены, образ опубликован в приватном GHCR. Эти испытания не подтверждают длительный SLA 99,9%, работу при 1000 одновременных пользователях, производительность записи под нагрузкой или промышленную готовность. Пилотная приёмка ещё требует оформления.
+> **Статус на 20.11.2026:** основные пользовательские сценарии проверены локально в Docker; ранее подтверждены 60/60 Django-тестов, Playwright 9/9, авторизованное чтение около 200 RPS и backup/restore. PR #1 с production-конфигурацией VPS и усиленными CI-проверками прошёл GitHub Actions run #6 (`quality` и `docker` — Success); изменения ожидают слияния в `main`. Репозиторий исходного кода публичный, GHCR package остаётся Private. Публичный VPS ещё не развёрнут. Результаты не доказывают длительный SLA 99,9%, работу при 1000 одновременных пользователях или производительность записи под нагрузкой.
 
 ## Подтверждённые результаты испытаний — 19.11.2026
 
@@ -59,14 +59,13 @@ docker compose up -d --build
 
 **Ожидаемый результат:** контейнеры `db`, `redis`, `app`, `proxy` получают состояние `running` / `healthy`. Первая сборка скачивает зависимости и занимает некоторое время. Контейнер приложения ожидает готовность PostgreSQL и Redis.
 
-5. Примените миграции и подготовьте статику:
+5. Примените миграции:
 
 ```powershell
 docker compose exec app python manage.py migrate
-docker compose exec app python manage.py collectstatic --noinput
 ```
 
-**Ожидаемый результат:** `Applying workspace.0001_initial... OK`, `Applying workspace.0002_postgres_overlap_guard... OK`; статические файлы собраны.
+**Ожидаемый результат:** `Applying workspace.0001_initial... OK`, `Applying workspace.0002_postgres_overlap_guard... OK`. Сборка статических файлов выполняется entrypoint приложения при каждом запуске контейнера, поэтому Nginx получает актуальный `staticfiles` volume.
 
 6. Создайте демонстрационные комнаты и тестовые аккаунты **только при DEBUG=1**:
 
@@ -104,14 +103,20 @@ docker compose down
 | Проблема | Что проверить |
 |---|---|
 | `DB_PASSWORD` не задан | `.env` создан и значение непустое |
-| Порт 8080 занят | Измените в `compose.yaml` `8080:80` на, например, `8088:80` |
+| Порт 8080 занят | Измените в `compose.yaml` `127.0.0.1:8080:80` на, например, `127.0.0.1:8088:80` |
 | Ошибка `relation ... does not exist` | Выполните `python manage.py migrate` в контейнере приложения |
 | `Invalid HTTP_HOST header` | В `ALLOWED_HOSTS` включён используемый адрес |
 | `CSRF verification failed` | В `CSRF_TRUSTED_ORIGINS` добавлен точный адрес с протоколом |
 | `503 /health/ready/` | Проверить `docker compose ps`, логи БД и Redis |
 | Ошибка миграции `btree_gist` | PostgreSQL должен разрешать `CREATE EXTENSION btree_gist`; используйте официальный образ БД |
 | Ошибка входа в демоаккаунт | `.env` `DEMO_PASSWORD` использовался **до** первого `seed_demo`; смените пароль через админку либо Django shell |
-| Нет оформления | Выполните `collectstatic`; проверить volume `staticfiles` и логи Nginx |
+| Нет оформления | Entrypoint автоматически запускает `collectstatic`; проверить `docker compose logs app`, volume `staticfiles` и логи Nginx |
+
+## Подготовка к VPS-хостингу
+
+Production-конфигурация находится в `compose.production.yaml`, шаблон переменных — в `.env.production.example`, подробная инструкция — [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Для публичного запуска нужны VPS и домен; до фактической настройки DNS, HTTPS, firewall и внешнего backup сайт не считается размещённым в Интернете.
+
+Локальный Compose публикует Nginx только на `127.0.0.1:8080`. Для VPS используйте оба файла Compose и Caddy; не открывайте внутренние порты приложения, PostgreSQL, Redis и мониторинга.
 
 ## Разработка без Docker (только быстрый UI smoke-test)
 
@@ -183,8 +188,8 @@ workspace/tests/            unit + integration + permission + concurrency tests
 e2e/                        браузерный сценарий Playwright
 templates/                  страницы и авторизация
 static/                     оригинальная светлая дизайн-система
-infra/                      Nginx, Prometheus, Grafana, Alertmanager
-scripts/                    PowerShell backup/restore, k6
+infra/                      Nginx, Caddy, Prometheus, Grafana, Alertmanager
+scripts/                    PowerShell и Linux backup/restore, k6
 .github/workflows/          CI и публикация Docker image в GHCR
 docs/                       матрица ИСП49, архитектура, эксплуатация, риски
 ```
@@ -200,7 +205,9 @@ docs/                       матрица ИСП49, архитектура, э�
 7. `docs/PILOT.md` — шаблон опытной эксплуатации и дефектов.
 8. `docs/PROJECT_PLAN.md` — план работ, трудозатраты и критерии готовности.
 9. `docs/RISKS.md` — реестр рисков.
+10. `docs/DEPLOYMENT.md` — инструкция VPS/HTTPS.
+11. `docs/FINAL_READINESS_2026-11-20.md` — актуальная оценка готовности.
 
 ### Оговорки для защиты
 
-Проект опубликован в приватном GitHub-репозитории `Ramig2007/OfficeFlow`; GitHub Actions и публикация Docker-образа в GHCR проверены. Документированные результаты покрытия и кратковременного нагрузочного теста можно приводить **с указанием сценариев и ограничений**. Не заявляйте доказанное SLA 99,9%, полноценную эксплуатацию на 1000 пользователей или промышленную готовность. По заданию преподавателя раздел об опытной эксплуатации считается завершённым только после документированного пилота и работы с дефектами.
+Исходный код опубликован в публичном GitHub-репозитории `Ramig2007/OfficeFlow`; GHCR package остаётся приватным. GitHub Actions и публикация Docker-образа в GHCR проверены. Документированные результаты покрытия и кратковременного нагрузочного теста можно приводить **с указанием сценариев и ограничений**. Не заявляйте доказанное SLA 99,9%, полноценную эксплуатацию на 1000 пользователей или промышленную готовность. По заданию преподавателя раздел об опытной эксплуатации считается завершённым только после документированного пилота и работы с дефектами.
