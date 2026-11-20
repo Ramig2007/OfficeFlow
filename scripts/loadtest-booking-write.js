@@ -18,8 +18,8 @@ export const options = {
       rate: Number(__ENV.TARGET_RPS || 8),
       timeUnit: '1s',
       duration: __ENV.DURATION || '30s',
-      preAllocatedVUs: Number(__ENV.PRE_ALLOCATED_VUS || 10),
-      maxVUs: Number(__ENV.MAX_VUS || 10),
+      preAllocatedVUs: Number(__ENV.PRE_ALLOCATED_VUS || 16),
+      maxVUs: Number(__ENV.MAX_VUS || 16),
     },
   },
   thresholds: {
@@ -71,10 +71,13 @@ export default function () {
     session = authenticate();
   }
 
-  // Each VU receives a disjoint range of future date/hour slots.
-  const slot = (__VU - 1) * 100 + __ITER;
-  const dayOffset = 30 + Math.floor(slot / 9);
-  const hour = 9 + (slot % 9);
+  // Reserve ten separate days per VU (nine hourly slots per day),
+  // preventing cross-user collisions while staying within the 180-day booking window.
+  const dayOffset = 20 + (__VU - 1) * 10 + Math.floor(__ITER / 9);
+  if (dayOffset >= 180) {
+    fail('Test booking date exceeds the allowed 180-day booking window.');
+  }
+  const hour = 9 + (__ITER % 9);
   const day = new Date(Date.now() + dayOffset * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const title = 'k6-' + __VU + '-' + __ITER + '-' + Date.now();
 
