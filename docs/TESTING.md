@@ -1,21 +1,41 @@
-# Стратегия тестирования и критерии качества
+# Стратегия тестирования и фактические результаты
 
-## Уровни
+## Уровни тестирования
 
 | Уровень | Инструмент | Проверяемые сценарии | Доказательство |
 |---|---|---|---|
-| Unit | pytest + Django тест DB | valid window, 1–4 часа, overlap, pending, отмена, роли | CI log |
-| Integration | APIClient + PostgreSQL | REST 201/400/403/404/409, CSV, IDOR, audit | CI log |
-| Concurrency | 2 threads + PostgreSQL | только одна запись на занятый слот | CI log + test trace |
-| Browser E2E | Playwright | login, создание и отмена из UI | screenshot/log |
-| Load | k6 | 100 RPS, 200 RPS, проверка HTTP latency/error | exported k6 JSON |
-| Static | Ruff, Django checks, dependency audit | ошибки кода и конфигурации | CI log |
-| Security | ручные тесты и автоматизированные API negative cases | CSRF, IDOR, privilege escalation, CSV injection | протокол |
-| UX | desktop/tablet/mobile | кликабельность, масштаб, таблицы, сообщения | фото/скриншоты |
+| Unit | pytest + Django test DB | временные интервалы, 1–4 часа, пересечения, VIP, отмена, роли | CI / локальный pytest |
+| Integration | DRF APIClient + PostgreSQL | REST 201/400/403/404/409, CSV, IDOR, audit | CI log |
+| Concurrency | 2 threads + PostgreSQL | только одна запись на занятый слот | PostgreSQL CI |
+| Browser smoke E2E | Playwright Chromium | login, dashboard, catalogue, schedule, permissions, mobile | `docs/E2E_BROWSER_RUN.md` |
+| Load | k6 | baseline liveness и авторизованные GET страницы | `docs/LOADTEST_RESULTS_2026-11-19.md` |
+| Static | Ruff, Bandit, structural audit | ошибки кода, распространённые security patterns, структура | GitHub Actions |
+| Django security | `manage.py check --deploy` | production security settings | GitHub Actions |
+| UX | Chromium 375px и 1440px | mobile catalogue и desktop dashboard | E2E screenshots |
 
-## Запуск unit и integration в CI
+## CI pipeline
 
-`.github/workflows/ci.yml` запускает Postgres 16 и Redis 7 в качестве job services. Порядок: installation → Ruff → Django check → migration drift check → pytest/coverage → Docker build/push main. Команды:
+Текущий workflow `.github/workflows/ci.yml` выполняет:
+
+1. PostgreSQL 16 и Redis 7 services;
+2. Ruff lint;
+3. Bandit scan по `workspace` (миграции и тесты исключены);
+4. `scripts/static_audit.py`;
+5. `python manage.py check`;
+6. production security check `python manage.py check --deploy` с безопасным тестовым окружением;
+7. `makemigrations --check --dry-run`;
+8. `collectstatic --noinput`;
+9. pytest с coverage gate ≥70% для `workspace.services` и `workspace.queries`;
+10. production Compose validation, Caddyfile validation и shell syntax checks;
+11. Docker image build; push в GHCR выполняется только при push в `main`, с тегами `latest` и `sha-<commit>`.
+
+На PR #1 `Prepare OfficeFlow for secure VPS hosting` GitHub Actions run #6 завершился успешно: jobs `quality` и `docker` — Success. Это проверяет CI и Docker build, но не выполняет публичный deploy.
+
+## Unit и integration tests
+
+Локальный прогон пользователя: **60/60 pytest passed**. В CI coverage для `workspace.services` и `workspace.queries` ранее составило **91,67%** при пороге 70%. Это покрытие двух указанных критических модулей, не всего приложения.
+
+Команды локального прогона (использовать тестовую БД, не рабочие данные):
 
 ```powershell
 python -m pytest workspace/tests -q --cov=workspace.services --cov=workspace.queries --cov-report=term-missing --cov-fail-under=70
@@ -24,52 +44,61 @@ python manage.py check
 python manage.py makemigrations --check --dry-run
 ```
 
-**Порог ≥70% применяется только к критическим доменным модулям `services` и `queries`, а не ко всему репозиторию.** Если преподаватель потребует охват всех критических модулей, расширьте `--cov` на `api`/`models`, добавьте тесты и приложите отчёт покрытия.
+## PostgreSQL concurrency
 
-## E2E (только после локального запуска демостенда)
+Тест `test_concurrent_booking_only_one_wins` использует `Barrier(2)` и одновременно создаёт две брони на одну комнату/интервал. Он пропускается на SQLite и запускается на PostgreSQL. В CI используется PostgreSQL 16; текущий quality job прошёл успешно.
 
-```powershell
-pip install -r requirements-e2e.txt
-playwright install chromium
-$env:BASE_URL = "http://localhost:8080"
-$env:DEMO_PASSWORD = "<значение DEMO_PASSWORD из .env>"
-python -m pytest e2e -q -m e2e
-```
+Ожидаемый инвариант: одна транзакция создаёт бронь, вторая получает конфликт, активная бронь остаётся одна. Независимое ограничение GiST exclusion остаётся последним уровнем защиты.
 
-Перед E2E выполните `seed_demo`. Сценарий создаёт и отменяет реальную тестовую бронь. Если дата/слот уже занят, исправьте тестовые данные или используйте новую тестовую БД. Прогон требует установленный браузер и работающий сайт.
+## Browser E2E
 
-## Поведение при одновременной записи
+Подтверждён локальный Playwright Chromium smoke-run: **9/9 checks passed**. Он проверяет анонимный редирект, вход, dashboard, карточку комнаты, VIP filter, расписание, историю, 403 на административные маршруты и мобильный каталог. Прогон read-only и не меняет бронирования. Подробности и команды: `docs/E2E_BROWSER_RUN.md`.
 
-Поточный тест с `Barrier(2)` одновременно создаёт две записи в одну комнату/интервал. В ожидаемом результате ровно один `created`, другой `conflict`, а в базе только одна активная запись. Проверка пропускается на SQLite; PG необходимо подтвердить в CI.
+Отдельный `e2e/test_user_journey.py` создаёт и отменяет тестовую бронь; его следует запускать только на изолированной демонстрационной БД.
 
-## План нагрузочных испытаний
+## Load testing
 
-1. Baseline liveness: `k6 run -e TARGET_RPS=100 -e DURATION=2m scripts/loadtest.js` (100 RPS).
-2. Повторить baseline при 200 RPS, снять метрики Nginx/Django/DB/Redis.
-3. Создать расширенный k6 сценарий с authenticated cookie/CSRF, включив 70% GET расписания, 10% GET комнаты, 20% POST booking; использовать заранее подготовленные интервалы.
-4. Снимать p50/p95, errors, 409 отдельно от 5xx, очереди и соединения PG.
-5. Построить графики RPS→p95 и RPS→error rate, оценить насыщение.
-6. Искусственно ухудшить БД (например, ресурсы/задержка на изолированном стенде), проверить 503/alert и восстановление. **Не проводить fault injection в рабочей базе.**
+Есть два разных сценария, результаты нельзя смешивать:
 
-Цели: availability ≥99,9% (по корректно выбранному периоду), p95 ≤200 мс и error rate ≤0,1%. Результат ниже цели — дефект или ограничение, а не основание переписать цель. Сохранить `k6 --summary-export`, Prometheus snapshots и конфигурацию окружения.
+1. `scripts/loadtest.js` — baseline `/health/live/`; 100 и 200 RPS за 30 секунд, p95 1,40 и 1,49 мс.
+2. `scripts/loadtest-auth-read.js` — login + авторизованные GET `/rooms/`, `/schedule/`, `/my-bookings/`; около 199,2 HTTP req/s, p95 13,19 мс, 0 HTTP-ошибок за 30 секунд.
+
+Второй сценарий использовал одну авторизованную сессию и не создавал бронирования. Он не подтверждает 1000 независимых пользователей, нагрузку на запись, долгосрочную доступность или SLA 99,9%. Подробные значения: `docs/LOADTEST_RESULTS_2026-11-19.md`.
+
+План следующих нагрузочных испытаний:
+- отдельная изолированная БД;
+- несколько независимых тестовых пользователей;
+- 70% чтения и 30% записей как начальная модель;
+- создание/редактирование/отмена брони и конфликт 409;
+- фиксация p50/p95, ошибок 5xx, ожидаемых 409, RPS, DB connections и CPU/RAM;
+- не проводить write workload на базе с реальными данными.
+
+## Backup / restore
+
+Подтверждён `RESTORE_TEST_OK`: PostgreSQL dump восстановлен во временную БД в том же контейнере, количества users/rooms/bookings/audit_events/migrations совпали, GiST overlap constraint найден, временная БД удалена. См. `docs/BACKUP_VALIDATION.md`.
+
+Для VPS добавлен Linux backup script `scripts/backup.sh`; он проверяет читаемость архива и создаёт SHA-256. Для защиты от потери сервера backup нужно копировать в отдельное зашифрованное off-host хранилище.
 
 ## Дополнительные ручные проверки
 
-- POST на бронь длительностью 0.5/5 часов → 400.
-- Бронирование в прошлом → 400.
+- POST брони длительностью менее 1 часа или более 4 часов → отказ.
+- Бронирование в прошлом → отказ.
 - Два соседних интервала → оба разрешены.
-- Два пересекающихся → 409; PG ограничение реально существует.
+- Два пересекающихся → конфликт; PostgreSQL constraint существует.
 - VIP → pending без возможности самосогласования.
-- У сотрудника GET чужой `/api/v1/bookings/{id}/` → 404.
-- У сотрудника POST чужой `cancel/` → 404.
-- У сотрудника POST `approve/` → 403.
-- POST с неожиданным `status`/`creator` не меняет бизнес-статус.
-- CSRF POST из браузера без токена и неаутентифицированные API requests отвергаются.
-- Реальные CSV с формулой Excel безопасны, фильтры дат корректны.
-- Создание/деактивация комнаты, редактирование профиля, повышение/понижение роли.
-- Проверить responsive ширины 375, 768, 1440 px; расписание/таблицы горизонтально прокручиваются, кнопки доступны.
-- Проверить `collectstatic` и отсутствие ошибок загрузки CSS/JS.
+- Сотрудник не может читать чужую бронь или вызывать административные actions.
+- CSRF для unsafe browser requests остаётся включённым.
+- Неожиданные `status` / `creator` поля не должны менять серверный статус брони.
+- CSV формулы экранируются, фильтры дат/комнат проверяются.
+- Проверить responsive widths 375, 768, 1440 px; 768px пока отдельно не подтверждён.
+- После Docker image update проверить, что entrypoint обновляет shared `staticfiles` volume.
 
-## Реестр дефектов и приоритеты
+## Открытые проверки
 
-**P0:** потеря данных, обход ролей, неконтролируемая двойная бронь. **P1:** API/API/UI функция недоступна, неверный статус VIP. **P2:** неполное сообщение/неверная фильтрация. **P3:** визуальное отклонение без влияния на сценарий. Регистрировать в GitHub Issues с окружением, шагами, Expected/Actual, приоритетом, log/screenshot, commit исправления и повторным тестом.
+- нагрузка на создание/редактирование/отмену бронирований;
+- 1000 независимых пользователей;
+- длительное измерение SLI/SLA;
+- PostgreSQL fault injection в изолированной среде;
+- DAST / внешний security review;
+- реальные уведомления Alertmanager (сейчас `null-receiver`);
+- публичный VPS deploy и внешняя проверка HTTPS.
