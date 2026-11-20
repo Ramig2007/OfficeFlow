@@ -2,6 +2,7 @@
 import os
 from datetime import datetime, time, timedelta
 
+from django.contrib.auth.hashers import make_password
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
@@ -29,20 +30,33 @@ class Command(BaseCommand):
         try:
             loadtest_count = int(os.getenv("LOADTEST_USERS", "0"))
         except ValueError as exc:
-            raise CommandError("LOADTEST_USERS must be an integer between 0 and 50") from exc
-        if not 0 <= loadtest_count <= 50:
-            raise CommandError("LOADTEST_USERS must be between 0 and 50")
+            raise CommandError("LOADTEST_USERS must be an integer between 0 and 1000") from exc
+        if not 0 <= loadtest_count <= 1000:
+            raise CommandError("LOADTEST_USERS must be between 0 and 1000")
         if loadtest_count and not os.getenv("DEMO_PASSWORD"):
             raise CommandError("Set DEMO_PASSWORD when creating load-test accounts")
-        for index in range(1, loadtest_count + 1):
-            username = f"loadtest{index:02d}"
-            user, created = User.objects.get_or_create(
-                username=username,
-                defaults={"first_name": f"Load test {index}", "email": f"{username}@example.test"},
+        if loadtest_count:
+            usernames = [f"loadtest{index:02d}" for index in range(1, loadtest_count + 1)]
+            # One shared password hash is acceptable only for these disposable DEBUG fixtures.
+            # This avoids performing 1000 expensive password hashes during CI data seeding.
+            password_hash = make_password(os.environ["DEMO_PASSWORD"])
+            User.objects.bulk_create(
+                [
+                    User(
+                        username=username,
+                        first_name=f"Load test {index}",
+                        email=f"{username}@example.test",
+                        password=password_hash,
+                    )
+                    for index, username in enumerate(usernames, start=1)
+                ],
+                batch_size=500,
+                ignore_conflicts=True,
             )
-            if created or not user.has_usable_password():
-                user.set_password(os.environ["DEMO_PASSWORD"])
-                user.save(update_fields=["password"])
+            User.objects.filter(username__in=usernames).update(
+                password=password_hash,
+                is_active=True,
+            )
         specs = [
             ("Атлас", "atlas", 2, "Северное крыло · 2 этаж", 8, "ТВ 65″, видеосвязь, доска", False),
             ("Маяк", "mayak", 1, "Западное крыло · 1 этаж", 4, "Доска, HDMI", False),

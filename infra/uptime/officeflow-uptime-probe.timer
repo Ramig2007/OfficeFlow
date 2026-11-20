@@ -1,0 +1,12 @@
+[Unit]
+Description=Run OfficeFlow external readiness probe every minute
+
+[Timer]
+OnBootSec=30s
+OnCalendar=*-*-* *:*:00
+AccuracySec=5s
+Persistent=true
+Unit=officeflow-uptime-probe.service
+
+[Install]
+WantedBy=timers.target

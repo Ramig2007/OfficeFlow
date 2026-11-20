@@ -1,0 +1,134 @@
+name: OfficeFlow Scale Validation
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: officeflow-scale-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scale-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Prepare disposable Docker Compose environment
+        id: prep
+        run: |
+          cp .env.example .env
+          sed -i 's/^ALLOWED_HOSTS=.*/ALLOWED_HOSTS=localhost,127.0.0.1,proxy/' .env
+          sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=officeflow-scale-ci-only-password/' .env
+          sed -i 's/^DEMO_PASSWORD=.*/DEMO_PASSWORD=OfficeFlow-Scale-CI-Only-2026!/' .env
+          docker compose up -d --build
+          ready=0
+          for attempt in $(seq 1 90); do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/health/ready/ || true)"
+            if [[ "$code" == "200" ]]; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" -eq 1
+          docker compose exec -T app python manage.py migrate --noinput
+
+      - name: Seed 1000 disposable independent users
+        id: seed
+        env:
+          DEMO_PASSWORD: "OfficeFlow-Scale-CI-Only-2026!"
+        run: |
+          docker compose exec -T \
+            -e "DEMO_PASSWORD=$DEMO_PASSWORD" \
+            -e LOADTEST_USERS=1000 \
+            app python manage.py seed_demo
+          count="$(docker compose exec -T app python -c 'import os; os.environ.setdefault("DJANGO_SETTINGS_MODULE", "officeflow.settings"); import django; django.setup(); from workspace.models import User; print(User.objects.filter(username__startswith="loadtest").count())' | tr -d '\r')"
+          test "$count" -eq 1000
+          echo "Verified $count disposable load-test accounts."
+
+      - name: Run 1000-user capacity and booking write/edit tests
+        id: scale_tests
+        continue-on-error: true
+        env:
+          DEMO_PASSWORD: "OfficeFlow-Scale-CI-Only-2026!"
+        run: |
+          mkdir -p "$RUNNER_TEMP/officeflow-scale-results"
+          chmod 0777 "$RUNNER_TEMP/officeflow-scale-results"
+          room_id="$(docker compose exec -T app python -c 'import os; os.environ.setdefault("DJANGO_SETTINGS_MODULE", "officeflow.settings"); import django; django.setup(); from workspace.models import Room; print(Room.objects.get(slug="mayak").pk)' | tr -d '\r')"
+          test -n "$room_id"
+
+          (
+            while true; do
+              printf '%s\n' "$(date -u +%FT%TZ)" >> "$RUNNER_TEMP/officeflow-scale-results/docker-stats.log"
+              docker stats --no-stream --format '{{.Name}},{{.CPUPerc}},{{.MemUsage}},{{.NetIO}},{{.BlockIO}}' \
+                >> "$RUNNER_TEMP/officeflow-scale-results/docker-stats.log" 2>&1 || true
+              sleep 5
+            done
+          ) &
+          stats_pid=$!
+
+          set +e
+          docker run --rm --network officeflow_internal \
+            -e BASE_URL=http://proxy \
+            -e K6_PASSWORD="$DEMO_PASSWORD" \
+            -v "$PWD/scripts/loadtest-1000-users.js:/scripts/loadtest-1000-users.js:ro" \
+            -v "$RUNNER_TEMP/officeflow-scale-results:/results" \
+            grafana/k6:0.52.0 run \
+            --summary-export=/results/1000-users-summary.json \
+            /scripts/loadtest-1000-users.js \
+            2>&1 | tee "$RUNNER_TEMP/officeflow-scale-results/1000-users.log"
+          capacity_status=${PIPESTATUS[0]}
+
+          docker run --rm --network officeflow_internal \
+            -e BASE_URL=http://proxy \
+            -e K6_PASSWORD="$DEMO_PASSWORD" \
+            -e K6_ROOM_ID="$room_id" \
+            -v "$PWD/scripts/loadtest-booking-create-edit-cancel.js:/scripts/loadtest-booking-create-edit-cancel.js:ro" \
+            -v "$RUNNER_TEMP/officeflow-scale-results:/results" \
+            grafana/k6:0.52.0 run \
+            --summary-export=/results/booking-create-edit-cancel-summary.json \
+            /scripts/loadtest-booking-create-edit-cancel.js \
+            2>&1 | tee "$RUNNER_TEMP/officeflow-scale-results/booking-create-edit-cancel.log"
+          write_status=${PIPESTATUS[0]}
+
+          kill "$stats_pid" 2>/dev/null || true
+          wait "$stats_pid" 2>/dev/null || true
+          printf 'capacity_exit_code=%s\nwrite_edit_exit_code=%s\n' \
+            "$capacity_status" "$write_status" \
+            > "$RUNNER_TEMP/officeflow-scale-results/exit-codes.txt"
+
+          set -e
+          if [[ "$capacity_status" -ne 0 || "$write_status" -ne 0 ]]; then
+            echo "One or more scale tests did not meet their k6 thresholds."
+            exit 1
+          fi
+
+      - name: Upload scale-test results and resource snapshots
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: officeflow-scale-validation
+          path: ${{ runner.temp }}/officeflow-scale-results/
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Destroy disposable test environment
+        if: always()
+        run: docker compose down -v --remove-orphans
+
+      - name: Require both scale tests to pass
+        if: always()
+        env:
+          PREPARE_OUTCOME: ${{ steps.prep.outcome }}
+          SEED_OUTCOME: ${{ steps.seed.outcome }}
+          SCALE_OUTCOME: ${{ steps.scale_tests.outcome }}
+        run: |
+          if [[ "$PREPARE_OUTCOME" != "success" || "$SEED_OUTCOME" != "success" || "$SCALE_OUTCOME" != "success" ]]; then
+            echo "Scale validation did not complete successfully; inspect the uploaded artifact."
+            exit 1
+          fi
