@@ -25,6 +25,24 @@ class Command(BaseCommand):
         if member_created or not member.password or not member.has_usable_password():
             member.set_password(os.getenv("DEMO_PASSWORD", "DemoOnly!123"))
             member.save(update_fields=["password"])
+
+        try:
+            loadtest_count = int(os.getenv("LOADTEST_USERS", "0"))
+        except ValueError as exc:
+            raise CommandError("LOADTEST_USERS must be an integer between 0 and 50") from exc
+        if not 0 <= loadtest_count <= 50:
+            raise CommandError("LOADTEST_USERS must be between 0 and 50")
+        if loadtest_count and not os.getenv("DEMO_PASSWORD"):
+            raise CommandError("Set DEMO_PASSWORD when creating load-test accounts")
+        for index in range(1, loadtest_count + 1):
+            username = f"loadtest{index:02d}"
+            user, created = User.objects.get_or_create(
+                username=username,
+                defaults={"first_name": f"Load test {index}", "email": f"{username}@example.test"},
+            )
+            if created or not user.has_usable_password():
+                user.set_password(os.environ["DEMO_PASSWORD"])
+                user.save(update_fields=["password"])
         specs = [
             ("Атлас", "atlas", 2, "Северное крыло · 2 этаж", 8, "ТВ 65″, видеосвязь, доска", False),
             ("Маяк", "mayak", 1, "Западное крыло · 1 этаж", 4, "Доска, HDMI", False),
@@ -45,4 +63,5 @@ class Command(BaseCommand):
             start = timezone.make_aware(datetime.combine(base, time(10 + idx, 0)))
             if not Booking.objects.filter(room=room, starts_at=start).exists():
                 create_booking(actor=member, room_id=room.id, title=["Планирование спринта", "Обсуждение дизайна", "Встреча с партнёрами", "Презентация", "Короткий синк"][idx], notes="Демонстрационная встреча", starts_at=start, ends_at=start + timedelta(hours=1))
-        self.stdout.write(self.style.SUCCESS("Демо: manager / employee, комнаты и встречи созданы"))
+        suffix = f", load-test accounts: {loadtest_count}" if loadtest_count else ""
+        self.stdout.write(self.style.SUCCESS(f"Демо: manager / employee, комнаты и встречи созданы{suffix}"))
