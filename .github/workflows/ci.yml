@@ -56,6 +56,8 @@ jobs:
         run: bandit -q -r workspace -x workspace/migrations,workspace/tests
       - name: Static project structure audit
         run: python scripts/static_audit.py
+      - name: Compile operational helper scripts
+        run: python -m py_compile scripts/render_alertmanager_config.py
       - name: Django checks
         run: python manage.py check
       - name: Validate OpenAPI schema
@@ -103,6 +105,29 @@ jobs:
             -v "$PWD/infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
             caddy:2.10-alpine \
             caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Validate Alertmanager configurations
+        run: |
+          config_dir="$(mktemp -d)"
+          trap 'rm -rf "$config_dir"' EXIT
+          docker run --rm \
+            -v "$PWD/scripts/render_alertmanager_config.py:/render.py:ro" \
+            -v "$config_dir:/out" \
+            -e ALERTMANAGER_WEBHOOK_URL= \
+            python:3.12-alpine python /render.py --output /out/alertmanager.yml
+          docker run --rm --entrypoint amtool \
+            -v "$config_dir:/etc/alertmanager:ro" \
+            prom/alertmanager:v0.28.1 \
+            check-config /etc/alertmanager/alertmanager.yml
+          docker run --rm \
+            -v "$PWD/scripts/render_alertmanager_config.py:/render.py:ro" \
+            -v "$config_dir:/out" \
+            -e ALERTMANAGER_WEBHOOK_URL=https://hooks.example.test/officeflow \
+            -e ALERTMANAGER_WEBHOOK_BEARER_TOKEN=ci-only-token \
+            python:3.12-alpine python /render.py --output /out/alertmanager.yml
+          docker run --rm --entrypoint amtool \
+            -v "$config_dir:/etc/alertmanager:ro" \
+            prom/alertmanager:v0.28.1 \
+            check-config /etc/alertmanager/alertmanager.yml
       - name: Check shell scripts
         run: |
           sh -n docker-entrypoint.sh
@@ -186,6 +211,31 @@ jobs:
           path: ${{ runner.temp }}/officeflow-e2e-artifacts/
           if-no-files-found: ignore
           retention-days: 7
+      - name: Exercise database and Redis failure recovery
+        run: |
+          wait_for_readiness() {
+            expected="$1"
+            for attempt in $(seq 1 60); do
+              actual="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/health/ready/ || true)"
+              if [[ "$actual" == "$expected" ]]; then
+                echo "Readiness returned HTTP $expected as expected."
+                return 0
+              fi
+              sleep 1
+            done
+            echo "Expected readiness HTTP $expected, last received $actual." >&2
+            return 1
+          }
+
+          docker compose stop db
+          wait_for_readiness 503
+          docker compose start db
+          wait_for_readiness 200
+
+          docker compose stop redis
+          wait_for_readiness 503
+          docker compose start redis
+          wait_for_readiness 200
       - name: Stop smoke stack
         if: always()
         run: docker compose down -v --remove-orphans
