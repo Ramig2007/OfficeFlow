@@ -2,7 +2,7 @@
 // creates a unique standard-room booking, then cancels it immediately.
 // Run ONLY against a disposable DEBUG=1 demo database.
 import http from 'k6/http';
-import { check, fail } from 'k6';
+import { check, fail, sleep } from 'k6';
 
 const baseURL = (__ENV.BASE_URL || 'http://proxy').replace(/\/+$/, '');
 const password = __ENV.K6_PASSWORD || '';
@@ -15,7 +15,7 @@ export const options = {
   scenarios: {
     booking_lifecycle: {
       executor: 'constant-arrival-rate',
-      rate: Number(__ENV.TARGET_RPS || 5),
+      rate: Number(__ENV.TARGET_RPS || 8),
       timeUnit: '1s',
       duration: __ENV.DURATION || '30s',
       preAllocatedVUs: Number(__ENV.PRE_ALLOCATED_VUS || 10),
@@ -119,4 +119,8 @@ export default function () {
     'booking cancel returns HTTP 200': (response) => response.status === 200,
     'booking status is cancelled': (response) => response.json('status') === 'cancelled',
   });
+
+  // Pace each independent VU so the 8 lifecycles/s arrival rate uses
+  // approximately 10 sessions while staying below the 120 API calls/min/user throttle.
+  sleep(1.2);
 }
