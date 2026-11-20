@@ -50,7 +50,7 @@
 | 3.1 | Таблица компонент/назначение/обоснование | `CAPACITY.md` | документация |
 | 3.2 | CPU/RAM/диск на 1000 пользователей, 100 RPS | формульная оценка `CAPACITY.md` | оценка, не измерение |
 | 3.3 | Отказоустойчивость, репликация | топология и ограничения в `CAPACITY.md` | проектная рекомендация |
-| 3.4 | Backup/restore | `scripts/backup.ps1`, `test-restore.ps1`; `RESTORE_TEST_OK`, совпали counts и GiST constraint | Проверено во временной БД того же контейнера |
+| 3.4 | Backup/restore | `scripts/backup.ps1`, `test-restore.ps1`, `backup.sh`, `test-restore.sh` | Windows restore проверен во временной БД; Linux scripts прошли syntax CI, на VPS ещё не запускались |
 | 3.5 | Healthcheck | `/health/live/`, `/health/ready/`, Compose checks; app healthy локально | Проверено локально |
 | 3.6 | Бенчмарки и обоснования | `CAPACITY.md`, k6 baseline и авторизованное чтение | Есть собственные краткие read-only результаты; write workload и 1000 пользователей не проверены |
 
