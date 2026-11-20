@@ -102,11 +102,20 @@ export default function () {
 
   const readPaths = ['/rooms/', '/schedule/', '/my-bookings/'];
   const readPath = readPaths[Math.floor(Math.random() * readPaths.length)];
+  // Keep the CSRF cookie alongside the session cookie. A rendered Django
+  // page can issue a new CSRF cookie if the GET omits it; keeping only the
+  // session cookie made subsequent POSTs use an outdated X-CSRFToken (403).
   const readResponse = http.get(baseURL + readPath, {
     redirects: 0,
-    headers: { Cookie: 'sessionid=' + session.sessionId },
+    headers: {
+      Cookie: 'sessionid=' + session.sessionId + '; csrftoken=' + session.csrfToken,
+    },
     tags: { operation: 'read', route: readPath },
   });
+  const freshCookies = http.cookieJar().cookiesForURL(baseURL + '/');
+  if (freshCookies.csrftoken && freshCookies.csrftoken[0]) {
+    session.csrfToken = freshCookies.csrftoken[0];
+  }
   if (!check(readResponse, {
     'mixed authenticated read returns HTTP 200': (response) => response.status === 200,
   })) {
