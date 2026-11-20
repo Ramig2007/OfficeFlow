@@ -11,7 +11,7 @@
 | Область | Подтверждённый факт | Ограничение |
 |---|---|---|
 | Репозиторий | Публичный GitHub source repo | GHCR package Private |
-| CI | Run #40: quality + docker Success | Более поздние runs #41–#48 отменены; новый pipeline обязателен |
+| CI | Run #52: quality + docker Success | Более поздние runs #41–#48 отменены; новый pipeline обязателен |
 | Docker runtime | Compose stack стартовал в CI, миграции применились, readiness 200, CSS отдался через Nginx | Ephemeral GitHub runner, не публичный сервер |
 | Django tests | 60/60 в локальном прогоне | Не считать это покрытием всех возможных сценариев |
 | Coverage | 91,67% для `workspace.services` и `workspace.queries` | Не покрытие всего репозитория |
