@@ -29,6 +29,7 @@ def render_env():
     )
     for key in (
         "SECRET_KEY", "DB_HOST", "DB_PORT", "DB_USER", "DB_NAME", "DB_PASSWORD",
+        "NEON_CONNECTION_STRING",
         "ALLOWED_HOSTS", "CSRF_TRUSTED_ORIGINS", "REDIS_URL",
     ):
         env.pop(key, None)
@@ -82,6 +83,61 @@ else:
 """
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_render_accepts_full_direct_connection_string_and_prefers_it_over_stale_credentials():
+    env = render_env()
+    env["NEON_CONNECTION_STRING"] = (
+        "postgresql://neondb_owner:abc%40def%3Aghi%2Fjkl"
+        "@ep-fresh.eu-central-1.aws.neon.tech:5432/neondb"
+        "?sslmode=require&channel_binding=require"
+    )
+    result = run_render(
+        """
+import django
+django.setup()
+from django.conf import settings
+db = settings.DATABASES["default"]
+assert db["HOST"] == "ep-fresh.eu-central-1.aws.neon.tech"
+assert db["NAME"] == "neondb"
+assert db["USER"] == "neondb_owner"
+assert db["PASSWORD"] == "abc@def:ghi/jkl"
+assert db["OPTIONS"]["sslmode"] == "verify-full"
+assert db["OPTIONS"]["sslrootcert"] == "/etc/ssl/certs/ca-certificates.crt"
+""",
+        env,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_render_full_connection_string_works_without_separate_neon_fields():
+    env = render_env()
+    for key in ("NEON_HOST", "NEON_DATABASE", "NEON_USER", "NEON_PASSWORD"):
+        env.pop(key)
+    env["NEON_CONNECTION_STRING"] = (
+        "postgresql://neondb_owner:0123456789Ab"
+        "@ep-fresh.eu-central-1.aws.neon.tech/neondb"
+    )
+    result = run_render("import django; django.setup()", env)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://user:password123456@ep-fresh.eu-central-1.aws.neon.tech/neondb",
+        "postgresql://user@ep-fresh.eu-central-1.aws.neon.tech/neondb",
+        "postgresql://user:password123456@ep-fresh-pooler.eu-central-1.aws.neon.tech/neondb",
+        "postgresql://user:password123456@ep-fresh.eu-central-1.aws.neon.tech:1234/neondb",
+        "postgresql://user:password123456@ep-fresh.eu-central-1.aws.neon.tech/",
+    ],
+)
+def test_render_rejects_invalid_or_pooled_full_connection_string(url):
+    env = render_env()
+    env["NEON_CONNECTION_STRING"] = url
+    result = run_render("import django; django.setup()", env)
+    assert result.returncode != 0
+    assert url not in result.stderr
 
 
 @pytest.mark.parametrize("length", [12, 16, 23])
