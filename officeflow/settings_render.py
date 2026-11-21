@@ -46,12 +46,16 @@ os.environ["SECURE_HSTS_SECONDS"] = "31536000"
 
 from .settings import *  # noqa: E402,F401,F403
 
-# Require certificate and hostname verification when connecting to Neon.
-# sslrootcert=system is supported by recent libpq bundled with psycopg[binary].
+# Require certificate AND hostname verification for Neon.
+# psycopg[binary] ships its own libpq/OpenSSL, whose default CA lookup may not
+# match Debian's installed certificate store. Using sslrootcert=system caused
+# Render's first deployment to fail with "SSL error: certificate verify failed"
+# even though Dockerfile.render installs ca-certificates. Point libpq directly
+# at the Debian CA bundle rather than weakening sslmode to "require".
 DATABASES["default"]["OPTIONS"].update(  # noqa: F405
     {
         "sslmode": "verify-full",
-        "sslrootcert": "system",
+        "sslrootcert": "/etc/ssl/certs/ca-certificates.crt",
         "connect_timeout": 15,
     }
 )
