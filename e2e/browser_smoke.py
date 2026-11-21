@@ -38,6 +38,9 @@ def login(page: Page, username: str) -> None:
 
 def create_booking(page: Page, room_name: str, title: str, day: date, hour: int) -> None:
     open_ok(page, "/bookings/new/")
+    form_screenshot = ARTIFACTS / "booking-form.png"
+    if not form_screenshot.exists():
+        page.screenshot(path=str(form_screenshot), full_page=True)
     page.locator('select[name="room"]').select_option(label=room_name)
     page.locator('input[name="title"]').fill(title)
     page.locator('input[name="starts_at_0"]').fill(day.isoformat())
@@ -85,10 +88,12 @@ def run() -> int:
 
             open_ok(page, "/rooms/")
             assert page.locator(".room-card").count() >= 1, "No rooms in demo data"
+            page.screenshot(path=str(ARTIFACTS / "rooms-desktop.png"), full_page=True)
             page.locator(".room-card .room-actions a.btn-light").first.click()
             assert "/api/" not in page.url, "Room detail opened the API instead of HTML"
             assert "/rooms/" in page.url and page.url.rstrip("/") != f"{BASE_URL}/rooms"
             assert page.locator(".detail-panel").is_visible(), "Room detail template did not render"
+            page.screenshot(path=str(ARTIFACTS / "room-detail.png"), full_page=True)
             steps.append("Rooms catalogue -> actual HTML room detail")
             print("PASS 4: room detail navigation")
 
@@ -100,11 +105,13 @@ def run() -> int:
 
             open_ok(page, "/schedule/")
             assert page.locator(".page-heading h1").count() == 1
+            page.screenshot(path=str(ARTIFACTS / "schedule-weekly.png"), full_page=True)
             steps.append("Weekly schedule")
             print("PASS 6: schedule")
 
             open_ok(page, "/my-bookings/")
             assert page.locator(".data-table").count() == 1
+            page.screenshot(path=str(ARTIFACTS / "my-bookings.png"), full_page=True)
             steps.append("Personal bookings history")
             print("PASS 7: bookings history")
 
@@ -185,6 +192,10 @@ def run() -> int:
 
             for path in ("/approvals/", "/control/rooms/", "/control/users/", "/reports/"):
                 open_ok(manager_page, path)
+            open_ok(manager_page, "/approvals/")
+            manager_page.screenshot(path=str(ARTIFACTS / "vip-approvals.png"), full_page=True)
+            open_ok(manager_page, "/reports/")
+            manager_page.screenshot(path=str(ARTIFACTS / "reports.png"), full_page=True)
             steps.append("Manager can open approvals, room management, user management and reports")
             print("PASS 15: administrator pages")
 
@@ -262,6 +273,7 @@ def run() -> int:
             assert csv_response.status == 200, f"Filtered CSV: {csv_response.status}"
             assert "text/csv" in csv_response.headers.get("content-type", "")
             assert edited_title in csv_response.text(), "Filtered export omitted the expected booking"
+            manager_page.screenshot(path=str(ARTIFACTS / "reports-filtered.png"), full_page=True)
             steps.append("Manager exports filtered CSV including the edited booking")
             print("PASS 22: filtered CSV export")
 
