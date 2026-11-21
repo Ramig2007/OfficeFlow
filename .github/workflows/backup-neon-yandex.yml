@@ -4,6 +4,10 @@ on:
   schedule:
     - cron: "15 2 * * *"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/backup-neon-yandex.yml"
 
 permissions:
   contents: read
@@ -132,7 +136,7 @@ jobs:
             -e AWS_DEFAULT_REGION -e AWS_EC2_METADATA_DISABLED \
             -e YC_BUCKET -e YC_PREFIX -e BACKUP_STAMP \
             --volume "$backup_dir:/backup" \
-            amazon/aws-cli:2 -euc '
+            amazon/aws-cli:2.42.1 -euc '
               endpoint="https://storage.yandexcloud.net"
               prefix="${YC_PREFIX:-officeflow/daily}"
               name="officeflow-${BACKUP_STAMP}.dump"
