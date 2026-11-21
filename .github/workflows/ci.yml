@@ -281,6 +281,97 @@ jobs:
           wait_for_readiness 503
           docker compose start redis
           wait_for_readiness 200
+      - name: Validate Prometheus, exporters, Alertmanager and provisioned Grafana dashboard
+        run: |
+          set -Eeuo pipefail
+          export GRAFANA_USER=admin
+          export GRAFANA_PASSWORD=OfficeFlow-CI-Only-Grafana-Password-2026
+          docker compose --profile observability up -d
+
+          wait_http() {
+            url="$1"
+            for attempt in $(seq 1 60); do
+              if curl -fsS "$url" >/dev/null; then
+                echo "Ready: $url"
+                return 0
+              fi
+              sleep 2
+            done
+            echo "Timed out waiting for $url" >&2
+            return 1
+          }
+
+          wait_http http://127.0.0.1:9090/-/ready
+          wait_http http://127.0.0.1:9093/-/ready
+          wait_http http://127.0.0.1:3000/api/health
+
+          python3 - <<'PY'
+          import json
+          import time
+          import urllib.parse
+          import urllib.request
+
+          base = "http://127.0.0.1:9090"
+          expected_jobs = {"officeflow", "postgres", "redis"}
+          last = {}
+          for _ in range(30):
+              with urllib.request.urlopen(base + "/api/v1/targets", timeout=5) as response:
+                  payload = json.load(response)
+              active = payload["data"]["activeTargets"]
+              last = {target["labels"].get("job"): target["health"] for target in active}
+              if all(last.get(job) == "up" for job in expected_jobs):
+                  break
+              time.sleep(2)
+          missing = {job: last.get(job, "missing") for job in expected_jobs if last.get(job) != "up"}
+          if missing:
+              raise SystemExit(f"Prometheus scrape targets are not healthy: {missing}")
+          print("Prometheus scrape targets are UP:", ", ".join(sorted(expected_jobs)))
+
+          required_queries = {
+              "PostgreSQL connections": "count(pg_stat_database_numbackends)",
+              "PostgreSQL transactions": "count(pg_stat_database_xact_commit)",
+              "Redis memory": "count(redis_memory_used_bytes)",
+              "Redis clients": "count(redis_connected_clients)",
+              "Redis commands": "count(redis_commands_processed_total)",
+          }
+          for label, expression in required_queries.items():
+              query = urllib.parse.urlencode({"query": expression})
+              with urllib.request.urlopen(base + "/api/v1/query?" + query, timeout=10) as response:
+                  result = json.load(response)
+              if not result.get("data", {}).get("result"):
+                  raise SystemExit(f"Prometheus metric unavailable: {label} ({expression})")
+              print("Metric available:", label)
+
+          grafana = "http://127.0.0.1:3000/api/dashboards/uid/officeflow-reliability"
+          request = urllib.request.Request(grafana)
+          import base64
+          credentials = base64.b64encode(
+              ( "admin:" + "OfficeFlow-CI-Only-Grafana-Password-2026").encode()
+          ).decode()
+          request.add_header("Authorization", "Basic " + credentials)
+          dashboard = None
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen(request, timeout=5) as response:
+                      dashboard = json.load(response)["dashboard"]
+                  break
+              except Exception:
+                  time.sleep(2)
+          if dashboard is None:
+              raise SystemExit("Provisioned Grafana dashboard OfficeFlow Reliability was not found")
+          titles = {panel.get("title") for panel in dashboard.get("panels", [])}
+          required_panels = {
+              "HTTP RPS", "HTTP p95 latency (seconds)", "5xx error rate",
+              "Infrastructure availability", "PostgreSQL connections",
+              "PostgreSQL transaction rate", "Redis memory",
+              "Redis connected clients", "Redis commands per second",
+          }
+          missing_panels = required_panels - titles
+          if missing_panels:
+              raise SystemExit(f"Grafana dashboard is missing panels: {sorted(missing_panels)}")
+          print(f"Grafana dashboard provisioned with {len(titles)} panels.")
+          PY
+
       - name: Stop smoke stack
         if: always()
         run: docker compose down -v --remove-orphans
