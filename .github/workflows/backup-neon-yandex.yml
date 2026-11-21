@@ -164,3 +164,74 @@ jobs:
             echo "- Full restore test: passed in a disposable PostgreSQL 18 instance."
             echo "- Remote SHA-256 verification: passed."
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Configure and verify 30-day Yandex Object Storage retention
+        if: steps.config.outputs.configured == 'true'
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.YC_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ru-central1
+          AWS_EC2_METADATA_DISABLED: "true"
+          YC_BUCKET: ${{ vars.YC_BUCKET }}
+          YC_PREFIX: ${{ vars.YC_PREFIX }}
+        run: |
+          set -Eeuo pipefail
+          lifecycle_dir="$RUNNER_TEMP/officeflow-lifecycle"
+          mkdir -p "$lifecycle_dir"
+          chmod 0700 "$lifecycle_dir"
+          endpoint="https://storage.yandexcloud.net"
+          prefix="${YC_PREFIX:-officeflow/daily}"
+
+          # Read existing rules first. Preserve every unrelated rule when adding ours.
+          docker run --rm --entrypoint /bin/sh \\
+            -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION -e AWS_EC2_METADATA_DISABLED \\
+            -e YC_BUCKET -e endpoint="$endpoint" \\
+            --volume "$lifecycle_dir:/work" \\
+            amazon/aws-cli:2.42.1 -euc '
+              if aws s3api get-bucket-lifecycle-configuration \\
+                --bucket "$YC_BUCKET" --endpoint-url "$endpoint" --output json \\
+                > /work/current.json 2>/work/lifecycle-error.txt; then
+                :
+              elif grep -q "NoSuchLifecycleConfiguration" /work/lifecycle-error.txt; then
+                printf "{\\"Rules\\":[]}\\n" > /work/current.json
+              else
+                cat /work/lifecycle-error.txt
+                exit 1
+              fi
+              aws s3api get-bucket-versioning --bucket "$YC_BUCKET" \\
+                --endpoint-url "$endpoint" --output json > /work/versioning.json
+            '
+
+          python3 scripts/configure_yandex_lifecycle.py \\
+            --current "$lifecycle_dir/current.json" \\
+            --versioning "$lifecycle_dir/versioning.json" \\
+            --prefix "$prefix" \\
+            --output "$lifecycle_dir/desired.json"
+
+          docker run --rm --entrypoint /bin/sh \\
+            -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION -e AWS_EC2_METADATA_DISABLED \\
+            -e YC_BUCKET -e endpoint="$endpoint" \\
+            --volume "$lifecycle_dir:/work" \\
+            amazon/aws-cli:2.42.1 -euc '
+              aws s3api put-bucket-lifecycle-configuration --bucket "$YC_BUCKET" \\
+                --lifecycle-configuration file:///work/desired.json \\
+                --endpoint-url "$endpoint"
+              aws s3api get-bucket-lifecycle-configuration --bucket "$YC_BUCKET" \\
+                --endpoint-url "$endpoint" --output json > /work/verified.json
+            '
+
+          python3 scripts/configure_yandex_lifecycle.py \\
+            --verify "$lifecycle_dir/verified.json" \\
+            --versioning "$lifecycle_dir/versioning.json" \\
+            --prefix "$prefix"
+
+          {
+            echo "## Yandex Object Storage lifecycle verified"
+            echo "- Rule: `officeflow-backups-retention-30-days`"
+            echo "- Scope: `$prefix`"
+            echo "- Current objects: expire after 30 days."
+            echo "- Noncurrent versions: expire after 30 days when bucket versioning is enabled or suspended."
+            echo "- Incomplete multipart uploads: abort after 7 days."
+            echo "- Existing unrelated lifecycle rules were preserved."
+          } >> "$GITHUB_STEP_SUMMARY"
