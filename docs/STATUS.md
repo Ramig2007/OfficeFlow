@@ -50,10 +50,10 @@
 - ~199,2 HTTP RPS измерены для авторизованного чтения на одной сессии; отдельно CI #106 проверил до 1000 независимых сессий и ступень 20 циклов записи/с.
 - 1000 синтетических VU подтверждены в CI; write test прошёл на пике около 60 write HTTP RPS. Mixed profile PR #20 был настроен на пик 100 HTTP RPS, но фактическая средняя интенсивность за 3 минуты составила **85,03 HTTP RPS** (15 466 запросов), p95 17,82 мс, 0 ошибок и 0 dropped iterations. Это не подтверждение устойчивых 100/200 RPS на Render.
 - SLA 99,9% требует длительного измерения.
-- Одна PostgreSQL база без репликации остаётся единой точкой отказа.
-- Alertmanager `null-receiver` по-прежнему не доставляет сообщения, пока не выбран и не подключён реальный webhook. Для внешних уведомлений о доступности публичного Render подготовлена инструкция UptimeRobot, но monitor/email contact ещё не включены.
-- GitHub Actions workflow Neon → Cloudflare R2 добавлен в текущую PR-ветку и включает полный restore test и remote checksum verification; bucket, credentials, первый успешный run и retention policy ещё не настроены.
-- Автоматической репликации/failover PostgreSQL нет; текущий учебный профиль использует одну БД.
+- Для текущей managed Neon схемы собственная streaming replication/Patroni не развёрнута: Neon документирует автоматическое восстановление stateless compute на том же endpoint и отказоустойчивое storage. Это обоснование архитектуры, а не наш измеренный failover; RTO/RPO не проверены.
+- Alertmanager по умолчанию использует `null-receiver`, но renderer и CI теперь поддерживают native Telegram receiver; токен/chat ID и фактическое test delivery ещё требуют настройки владельцем. UptimeRobot отдельно контролирует публичный Render, monitor/email contact ещё не включены.
+- GitHub Actions workflow Neon → Cloudflare R2 находится в `main` и включает полный restore test и remote checksum verification; bucket, credentials, первый успешный run и retention policy ещё не настроены.
+- Краткосрочное внешнее наблюдение планируется на 24–48 часов; оно не подтверждает месячный SLA 99,9%.
 - Публичный Render Free + Neon Free service Live по адресу https://officeflow-x6ay.onrender.com/; пользователь подтвердил вход и создание переговорных. Полный независимый smoke всех бизнес-сценариев ещё не задокументирован. VPS для выбранной схемы не требуется.
 - GHCR package приватный; для первого VPS-деплоя используйте сборку из публичного Git-репозитория, как описано в `docs/DEPLOYMENT.md`, либо отдельно измените видимость пакета.
 
