@@ -9,11 +9,13 @@
 
 
 Для загрузки в Yandex Object Storage workflow использует официальный Docker-образ AWS CLI `amazon/aws-cli:2.42.1` (версия закреплена, чтобы сборка не зависела от плавающего тега).
-## 1. Внешние уведомления о доступности — UptimeRobot
+## 1. Внешний мониторинг доступности — GitHub Actions и UptimeRobot
 
-Для публичного Render-сервиса используется независимый мониторинг, а не внутренний Prometheus. В бесплатном плане UptimeRobot доступны до 50 мониторов и проверки каждые 5 минут; уведомления по email можно включить через Alert Contacts. Актуальные ограничения: [UptimeRobot pricing](https://uptimerobot.com/pricing/) и [monitoring interval](https://help.uptimerobot.com/en/articles/11360876-what-is-a-monitoring-interval-in-uptimerobot).
+В репозитории добавлен независимый от Render GitHub Actions probe .github/workflows/uptime-monitor.yml, который выполняет HTTPS GET к публичному readiness endpoint каждые 5 минут. Первый запуск #44950272193 прошёл: 2026-11-21T21:11:56Z, HTTP 200, JSON status=ready, 209,06 мс. История запусков и точные timestamps доступны в GitHub → Actions → OfficeFlow External Uptime Probe. Пока это только одна проба; 24/48-часовое окно ещё предстоит накопить. GitHub scheduled runs могут задерживаться, поэтому расчёт доступности должен учитывать фактические timestamps и пропуски.
 
-### Создание монитора
+UptimeRobot можно использовать дополнительно для email/push оповещений. В бесплатном плане доступны до 50 мониторов и HTTP(s) проверки раз в 5 минут; см. [UptimeRobot pricing](https://uptimerobot.com/pricing/) и [monitoring interval](https://help.uptimerobot.com/en/articles/11360876-what-is-a-monitoring-interval-in-uptimerobot).
+
+### Дополнительная настройка UptimeRobot (если нужен email/push)
 
 1. Создайте аккаунт на https://uptimerobot.com/ и подтвердите email.
 2. В панели нажмите **Add New Monitor**.
@@ -40,7 +42,7 @@ Render Free засыпает после 15 минут без входящего 
 
 ## 2. Реальный получатель уведомлений Prometheus / Alertmanager — Telegram
 
-Prometheus, Grafana и Alertmanager из `compose.yaml` входят в локальный Docker Compose observability-профиль. Они **не развёрнуты внутри Render Free** и не получают метрики публичного Render-сервиса автоматически. UptimeRobot отдельно контролирует публичный Render URL; по пользовательскому скриншоту монитор уже Up и накопил 14 ч 52 мин наблюдения.
+Prometheus, Grafana и Alertmanager из `compose.yaml` входят в локальный Docker Compose observability-профиль. Они **не развёрнуты внутри Render Free** и не получают метрики публичного Render-сервиса автоматически. В заметках предыдущей сессии указан пользовательский скриншот UptimeRobot со статусом Up и 14 ч 52 мин наблюдения; текущий статус аккаунта повторно не проверен. GitHub Actions probe теперь также проверяет публичный Render URL.
 
 В репозитории настроен генератор `scripts/render_alertmanager_config.py`: он поддерживает native Telegram receiver и дополнительный HTTPS webhook. Без настроек сохраняется безопасный `null-receiver`; CI проверяет корректность Telegram-конфигурации через `amtool check-config`.
 
@@ -116,6 +118,7 @@ Invoke-RestMethod -Uri "http://localhost:9093/api/v2/alerts" -Method Post -Conte
 - проверка: `pg_restore --list`, затем полный restore в отдельный временный PostgreSQL 18 контейнер;
 - удалённая копия: приватный Yandex Object Storage bucket через S3 API (`https://storage.yandexcloud.net`);
 - после загрузки workflow скачивает dump и checksum обратно и сверяет SHA-256;
+- workflow сохраняет существующие Lifecycle rules, добавляет отдельное правило для officeflow/daily/ и читает его обратно для проверки срока 30 дней;
 - дампы не публикуются как GitHub Actions artifacts.
 
 ### 3.1 Создать bucket в Yandex Object Storage
@@ -126,7 +129,7 @@ Invoke-RestMethod -Uri "http://localhost:9093/api/v2/alerts" -Method Post -Conte
 4. Выберите регион/локацию, доступную для вашего облака, и класс хранения **Standard**.
 5. Оставьте публичный доступ выключенным. Не включайте anonymous read/list и не публикуйте объекты.
 6. Запишите имя bucket. Endpoint S3 API: `https://storage.yandexcloud.net`; регион подписи AWS CLI: `ru-central1`.
-7. Настройте Lifecycle для удаления старых объектов через 30 дней, если доступно в настройках bucket. Это ограничивает накопление хранения; проверьте правило после создания.
+7. Правило Lifecycle для префикса officeflow/daily/ автоматически устанавливается и считывается обратно workflow .github/workflows/backup-neon-yandex.yml: текущие объекты — 30 дней, незавершённые multipart uploads — 7 дней, нетекущие версии — 30 дней при включённом versioning. Успех считать подтверждённым только после завершения нового backup run с шагом Configure and verify 30-day Yandex Object Storage retention.
 
 ### 3.2 Создать отдельную учётную запись и ключ S3
 
