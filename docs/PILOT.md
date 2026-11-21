@@ -91,10 +91,10 @@
 | PILOT-11 | CRUD/деактивация комнаты | Chromium CI #117 | Автоматически проверено |
 | PILOT-12 | CSV и фильтры | Ручной экспорт + Chromium CI #117 | Проверено |
 | PILOT-13 | IDOR/CSRF/mass assignment | API negative tests; Bandit | Частично; внешний DAST не выполнялся |
-| PILOT-14 | Метрики и доставка алертов | Prometheus rules; HTTPS webhook renderer; UptimeRobot setup guide | Частично; Alertmanager recipient и UptimeRobot email contact не подключены |
-| PILOT-15 | Backup/restore | Independent PostgreSQL restore CI #117; Neon→R2 GitHub Actions workflow added | Restore в CI проверен; R2 bucket/secrets и первый удалённый backup ожидают настройки |
-| PILOT-16 | Mixed read/write load | PR #20 CI run #44843044175 | Пороги пройдены; фактическая средняя интенсивность 85,03 HTTP RPS, не устойчивые 100 RPS |
-| PILOT-17 | Деградация PostgreSQL/Redis | Stop→503→start→200 в CI | Проверено; HA failover не проверен |
+| PILOT-14 | Метрики и доставка алертов | Prometheus rules; Telegram receiver renderer; UptimeRobot setup guide | Код готов и валидируется CI; Telegram credentials, test message и внешний monitor требуют настройки владельцем |
+| PILOT-15 | Backup/restore | Independent PostgreSQL restore CI #117; Neon→R2 GitHub Actions workflow в `main` | Restore в CI проверен; R2 bucket/secrets и первый удалённый backup ожидают настройки |
+| PILOT-16 | Mixed read/write load | Новый 5-минутный mixed 100 RPS и 5-минутный authenticated read 200 RPS профили в `scale-validation.yml` | Ожидается новый CI run; записывать только фактические k6 результаты |
+| PILOT-17 | Деградация PostgreSQL/Redis | Stop→503→start→200 в CI; managed Neon HA обоснован в `CAPACITY.md` | Локальная деградация проверена; провайдерский Neon failover не измерялся |
 | PILOT-18 | UX 375/768/1440 | Chromium CI #117 | Проверено |
 | PILOT-19 | Приватность schedule API | PR #12 regression test | Проверено |
 
