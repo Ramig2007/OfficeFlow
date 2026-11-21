@@ -2,7 +2,7 @@
 
 ## Текущее состояние
 
-Публичный Render + Neon сервис доступен по адресу https://officeflow-x6ay.onrender.com/; пользователь подтвердил Live, вход и создание переговорных. **Длительное измерение пока не началось**, потому что независимый внешний монитор ещё не создан. Наличие health endpoint, Prometheus, Grafana и проверок CI само по себе не подтверждает SLA.
+Публичный Render + Neon сервис доступен по адресу https://officeflow-x6ay.onrender.com/; пользователь подтвердил Live, вход и создание переговорных. **UptimeRobot monitor ещё должен быть создан владельцем.** Для сдачи практики целимся в 24–48 часов внешнего наблюдения; фиксируем фактическое время старта и фактически накопленную статистику. Наличие health endpoint, Prometheus, Grafana и проверок CI само по себе не подтверждает SLA.
 
 Для быстрого старта рекомендуется UptimeRobot Free: до 50 мониторов, HTTP(s) проверки раз в 5 минут и email notifications через Alert Contacts. См. [официальный тариф](https://uptimerobot.com/pricing/) и [описание интервала](https://help.uptimerobot.com/en/articles/11360876-what-is-a-monitoring-interval-in-uptimerobot).
 
