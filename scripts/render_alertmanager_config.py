@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render a safe Alertmanager config for an optional HTTPS webhook receiver."""
+"""Render a safe Alertmanager config for optional Telegram and HTTPS webhook receivers."""
 
 from __future__ import annotations
 
@@ -15,9 +15,16 @@ def yaml_string(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-def render_config(webhook_url: str, bearer_token: str) -> str:
+def render_config(
+    webhook_url: str,
+    bearer_token: str,
+    telegram_bot_token: str = "",
+    telegram_chat_id: str = "",
+) -> str:
     webhook_url = webhook_url.strip()
     bearer_token = bearer_token.strip()
+    telegram_bot_token = telegram_bot_token.strip()
+    telegram_chat_id = telegram_chat_id.strip()
 
     if bearer_token and not webhook_url:
         raise ValueError("ALERTMANAGER_WEBHOOK_BEARER_TOKEN requires ALERTMANAGER_WEBHOOK_URL")
@@ -34,40 +41,29 @@ def render_config(webhook_url: str, bearer_token: str) -> str:
             or parsed.username
             or parsed.password
             or parsed.fragment
-            or any(char in webhook_url for char in "\r\n\t")
+            or any(char in webhook_url for char in "\\r\\n\\t")
         ):
             raise ValueError(
                 "ALERTMANAGER_WEBHOOK_URL must be an HTTPS URL without embedded credentials or a fragment"
             )
-        lines = [
-            "global:",
-            "  resolve_timeout: 5m",
-            "route:",
-            "  receiver: officeflow-webhook",
-            '  group_by: ["alertname"]',
-            "  group_wait: 10s",
-            "  group_interval: 5m",
-            "  repeat_interval: 4h",
-            "receivers:",
-            "  - name: officeflow-webhook",
-            "    webhook_configs:",
-            f"      - url: {yaml_string(webhook_url)}",
-            "        send_resolved: true",
-        ]
-        if bearer_token:
-            if any(char in bearer_token for char in "\r\n"):
-                raise ValueError("ALERTMANAGER_WEBHOOK_BEARER_TOKEN must not contain line breaks")
-            lines.extend(
-                [
-                    "        http_config:",
-                    "          authorization:",
-                    "            type: Bearer",
-                    f"            credentials: {yaml_string(bearer_token)}",
-                ]
-            )
-        return "\n".join(lines) + "\n"
 
-    return """global:
+    telegram_enabled = bool(telegram_bot_token or telegram_chat_id)
+    if telegram_enabled:
+        if not telegram_bot_token or not telegram_chat_id:
+            raise ValueError(
+                "ALERTMANAGER_TELEGRAM_BOT_TOKEN and ALERTMANAGER_TELEGRAM_CHAT_ID must be set together"
+            )
+        if any(char in telegram_bot_token for char in "\\r\\n\\t"):
+            raise ValueError("ALERTMANAGER_TELEGRAM_BOT_TOKEN must not contain whitespace control characters")
+        try:
+            chat_id = int(telegram_chat_id)
+        except ValueError as exc:
+            raise ValueError("ALERTMANAGER_TELEGRAM_CHAT_ID must be an integer") from exc
+        if chat_id == 0:
+            raise ValueError("ALERTMANAGER_TELEGRAM_CHAT_ID must not be zero")
+
+    if not webhook_url and not telegram_enabled:
+        return """global:
   resolve_timeout: 5m
 route:
   receiver: null-receiver
@@ -77,8 +73,54 @@ route:
   repeat_interval: 4h
 receivers:
   - name: null-receiver
-# No webhook is configured: alerts are evaluated but no human notification is delivered.
+# No receiver is configured: alerts are evaluated but no human notification is delivered.
 """
+
+    lines = [
+        "global:",
+        "  resolve_timeout: 5m",
+        "route:",
+        "  receiver: officeflow-notifications",
+        '  group_by: ["alertname"]',
+        "  group_wait: 10s",
+        "  group_interval: 5m",
+        "  repeat_interval: 4h",
+        "receivers:",
+        "  - name: officeflow-notifications",
+    ]
+
+    if telegram_enabled:
+        lines.extend(
+            [
+                "    telegram_configs:",
+                f"      - bot_token: {yaml_string(telegram_bot_token)}",
+                f"        chat_id: {chat_id}",
+                "        send_resolved: true",
+                "        parse_mode: HTML",
+            ]
+        )
+
+    if webhook_url:
+        lines.extend(
+            [
+                "    webhook_configs:",
+                f"      - url: {yaml_string(webhook_url)}",
+                "        send_resolved: true",
+            ]
+        )
+        if bearer_token:
+            if any(char in bearer_token for char in "\\r\\n"):
+                raise ValueError("ALERTMANAGER_WEBHOOK_BEARER_TOKEN must not contain line breaks")
+            lines.extend(
+                [
+                    "        http_config:",
+                    "          authorization:",
+                    "            type: Bearer",
+                    f"            credentials: {yaml_string(bearer_token)}",
+                ]
+            )
+
+    return "\\n".join(lines) + "\\n"
 
 
 def main() -> int:
@@ -90,6 +132,8 @@ def main() -> int:
         config = render_config(
             os.environ.get("ALERTMANAGER_WEBHOOK_URL", ""),
             os.environ.get("ALERTMANAGER_WEBHOOK_BEARER_TOKEN", ""),
+            os.environ.get("ALERTMANAGER_TELEGRAM_BOT_TOKEN", ""),
+            os.environ.get("ALERTMANAGER_TELEGRAM_CHAT_ID", ""),
         )
     except ValueError as exc:
         parser.error(str(exc))
@@ -97,8 +141,12 @@ def main() -> int:
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(config, encoding="utf-8")
-    mode = "HTTPS webhook enabled" if os.environ.get("ALERTMANAGER_WEBHOOK_URL", "").strip() else "null receiver (notifications disabled)"
-    print(f"Alertmanager config generated: {mode}")
+    mode = []
+    if os.environ.get("ALERTMANAGER_TELEGRAM_BOT_TOKEN", "").strip():
+        mode.append("Telegram enabled")
+    if os.environ.get("ALERTMANAGER_WEBHOOK_URL", "").strip():
+        mode.append("HTTPS webhook enabled")
+    print(f"Alertmanager config generated: {', '.join(mode) if mode else 'null receiver (notifications disabled)'}")
     return 0
 
 
