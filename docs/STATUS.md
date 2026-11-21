@@ -15,20 +15,20 @@
 | Mixed 100 RPS | Целевой профиль 100 RPS; фактически **93,08 RPS** в среднем за окно с ramp-up, p95 **27,36 мс**, p99 **209,02 мс**, 0 ошибок, 0 dropped iterations | Не замер на публичном Render; среднее ниже целевого пика из-за разгона профиля |
 | Read-only 100 RPS | **99,93 RPS**, 30 003 HTTP-запроса, p95 **32,36 мс**, p99 **50,16 мс**, 0 ошибок, 0 dropped iterations, 30 001 проверка успешна | Авторизованные HTML-маршруты в CI runner |
 | Дополнительный read stress 150 RPS | 109,25 RPS, p95 5,13 с, 11 739 dropped iterations | **FAIL**; это дополнительный стресс-профиль, не выдавать его за успешный |
-| Удалённый backup | Workflow run #44951091010 (**run #12**) — Success: Neon dump, полный restore в PostgreSQL 18 (14 таблиц), Yandex upload/download, SHA-256 и read-back проверки Lifecycle 30 дней прошли | Проверка выполнена GitHub Actions через S3 API; удаление старых объектов произойдёт по политике Yandex Lifecycle, не мгновенно |
+| Удалённый backup | Workflow run #44951659002 (**run #13**) — Success: Neon dump, полный restore в PostgreSQL 18 (14 таблиц), Yandex upload/download, SHA-256 и read-back Lifecycle 30 дней | Проверка выполнена GitHub Actions через S3 API; удаление старых объектов произойдёт по политике Yandex Lifecycle, не мгновенно |
 | Публичный стенд | Render + Neon: https://officeflow-x6ay.onrender.com/; readiness endpoint ответил `{"status":"ready"}`; ранее пользователь подтвердил вход и создание переговорных | Render Free не является платформой с доказанным SLA |
 | Мониторинг | GitHub Actions workflow `.github/workflows/uptime-monitor.yml` проверяет публичный readiness endpoint; первый run #44950272193: PASS, HTTP 200, `ready`, 209,06 мс | Пока подтверждена одна проба; 24/48-часовое окно ещё не накоплено. Историческая заметка о UptimeRobot Up 14 ч 52 мин не является текущей live-проверкой; месячный SLA 99,9% не доказан |
-| Grafana / Prometheus | Dashboard `OfficeFlow · Reliability` расширен до 9 панелей: HTTP RPS/p95/5xx, доступность, PostgreSQL connections/transactions, Redis memory/clients/commands; Prometheus scrape config включает app, postgres-exporter и redis-exporter | Dashboard разворачивается локальным Docker Compose профилем `observability`, а не на Render Free; проверка provisioning и метрик добавлена в CI, ожидает результата run #221 |
+| Grafana / Prometheus | Dashboard `OfficeFlow · Reliability` — 9 панелей; CI #230 подтвердил targets officeflow/postgres/redis UP, 5 метрик PostgreSQL/Redis доступны и Grafana provisioning успешен | Dashboard работает в локальном Docker Compose профиле `observability`, а не на Render Free; CI: [run #44952583321](https://github.com/Ramig2007/OfficeFlow/actions/runs/44952583321) |
 | Telegram alerts | Native Telegram receiver и проверка конфигурации реализованы; добавлен workflow `.github/workflows/telegram-delivery-check.yml` | Первый запуск #44951325097 пропущен: GitHub Actions secrets `ALERTMANAGER_TELEGRAM_BOT_TOKEN` и `ALERTMANAGER_TELEGRAM_CHAT_ID` не заданы; сообщение не отправлялось |
 | GHCR | Docker image собирается и публикуется в GHCR | Пакет GHCR остаётся Private; публичен исходный код |
 
 ## Удалённая резервная копия — детали
 
-- GitHub Actions: [run #44951091010](https://github.com/Ramig2007/OfficeFlow/actions/runs/44951091010), также [run #44950943899](https://github.com/Ramig2007/OfficeFlow/actions/runs/44950943899).
+- GitHub Actions: [run #44951659002](https://github.com/Ramig2007/OfficeFlow/actions/runs/44951659002), также [run #44951091010](https://github.com/Ramig2007/OfficeFlow/actions/runs/44951091010).
 - Workflow: `.github/workflows/backup-neon-yandex.yml`.
 - Bucket: `officeflow-backups-2026`.
 - Prefix: `officeflow/daily`.
-- Последний подтверждённый файл: `officeflow-20261121T212120Z.dump` и файл контрольной суммы `.sha256` (backup run #12).
+- Последний подтверждённый файл: `officeflow-20261121T212755Z.dump` и файл контрольной суммы `.sha256` (backup run #13).
 - Полное восстановление проверено в одноразовом PostgreSQL 18 контейнере; восстановлено 14 public tables.
 - Дамп и SHA-256 загружены в bucket, затем скачаны обратно; `sha256sum -c` прошёл.
 - Lifecycle rule `officeflow-backups-retention-30-days` для `officeflow/daily/` прочитан обратно и подтверждён: текущие объекты истекают через 30 дней; незавершённые multipart uploads прерываются через 7 дней; прочие правила бакета сохранены.
@@ -37,10 +37,9 @@
 
 1. Накопить фактическое 24–48-часовое окно внешнего мониторинга через GitHub Actions; расписание может задерживаться, поэтому считать реальные timestamps и пропуски. Длительный SLA 99,9%: нужны фактические внешние наблюдения за согласованный период; краткий мониторинг не доказывает месячную доступность.
 2. Реальная доставка Alertmanager → Telegram: конфигурация готова, но secrets пока не заданы; одноразовый workflow check #44951325097 завершился пропуском без отправки сообщения.
-3. Реальная доставка Telegram: добавить GitHub Actions secrets `ALERTMANAGER_TELEGRAM_BOT_TOKEN` и `ALERTMANAGER_TELEGRAM_CHAT_ID`, затем повторить `OfficeFlow Telegram Delivery Check`; пока доставка не подтверждена.
-4. Независимая формальная приёмка и рецензия наставника/одногруппника с датой и подписью.
-5. Полный комплект реальных скриншотов интерфейса для Word-отчёта; CI browser screenshots не заменяют скриншоты публичного сайта.
-6. Внешний DAST и проверка отказа managed Neon compute/RTO/RPO не выполнены.
+3. Независимая формальная приёмка и рецензия наставника/одногруппника с датой и подписью.
+4. Полный комплект реальных скриншотов интерфейса для Word-отчёта; CI browser screenshots не заменяют скриншоты публичного сайта.
+5. Внешний DAST и проверка отказа managed Neon compute/RTO/RPO не выполнены.
 
 ## Корректный вывод для отчёта
 
@@ -58,3 +57,12 @@ OfficeFlow реализует основные функции бронирова
 - Lifecycle officeflow-backups-retention-30-days настроен и прочитан обратно через S3 API. В ходе настройки сохранено 1 существовавшее стороннее правило. Retention 30 дней подтверждён не только конфигурацией в репозитории, но и успешным read-back из bucket.
 - Grafana dashboard расширен с 4 до 9 панелей; добавлены метрики PostgreSQL и Redis. CI теперь запускает observability profile и проверяет targets, метрики и dashboard provisioning; итог ожидается.
 - Добавлен одноразовый Telegram delivery workflow. Его первый запуск обнаружил, что Actions secrets для Telegram не настроены; он корректно пропустил отправку, не публикуя и не запрашивая секреты.
+
+
+## Дополнение 22.11.2026 — CI #230 и backup run #13
+
+- CI #230 завершился Success: quality checks, production image, app smoke, browser E2E, multi-session booking write test, independent PostgreSQL restore, DB/Redis failure recovery.
+- Observability validation прошла: Prometheus scrape targets officeflow, postgres и redis — UP; PostgreSQL connections/transactions и Redis memory/clients/commands доступны; Grafana provisioned dashboard содержит 9 панелей.
+- Backup run #13 завершился Success. Архив officeflow-20261121T212755Z.dump восстановлен в disposable PostgreSQL 18 (14 таблиц), remote SHA-256 проверен, Lifecycle 30 дней прочитан обратно; summary больше не содержит shell command-substitution ошибки.
+- Main-branch scale validation run #3 ещё выполняется; предыдущий PR #37 run подтвердил 1000/1000 входов и 1000 VU.
+- Telegram фактическая доставка остаётся единственным внешним интеграционным пунктом, требующим пользовательских Actions secrets. 24–48-часовое uptime окно также ещё не накоплено.
