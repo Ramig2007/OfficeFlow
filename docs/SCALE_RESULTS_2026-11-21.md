@@ -81,3 +81,22 @@ Docker CPU может превышать 100%, если использовано
 Во время 150 RPS профиля максимальные наблюдавшиеся значения Docker CPU: app **386,23%**, PostgreSQL **30,15%**, Redis **5,42%**, proxy **5,03%**. Это указывает на насыщение CPU Django/Gunicorn в данном CI runner; показатели не являются замером публичного Render.
 
 **Интерпретация:** обязательный смешанный профиль с целевыми 100 RPS прошёл. Дополнительный read-only тест 150 RPS не прошёл, поэтому его нельзя выдавать за подтверждённую производительность. В следующем CI прогоне read-only acceptance выровнен по целевым 100 RPS, а пороги ужесточены до p95 <200 мс / p99 <500 мс; добавлены отдельные latency Trends для трёх HTML-маршрутов.
+
+
+## 7. PR #37 CI #188 — повторная проверка 100 RPS acceptance
+
+Источник: PR #37 CI run **#44942581093** (все три job: quality, scale-validation и docker — Success):  
+https://github.com/Ramig2007/OfficeFlow/actions/runs/44942581093
+
+Артефакт `officeflow-scale-validation` (ID `14722659567`) содержит исходные k6 logs, JSON summaries и Docker resource snapshots.
+
+| Профиль | Результат | Итог |
+|---|---|---|
+| 1000 независимых пользователей | 1000/1000 успешных логинов, max 1000 VU, 41 288 HTTP requests, 0 HTTP errors, 100% checks, p95 11,08 мс | PASS |
+| Create/edit/cancel | 3 749 полных циклов; 3 749 create + 3 749 edit + 3 749 cancel; 11 347 HTTP requests с авторизациями; 0 HTTP errors; 0 dropped iterations; p95 13,63 мс | PASS |
+| Mixed target 100 RPS | 33 686 HTTP requests, 93,08 RPS average over the whole window including ramp-up; p95 27,36 мс, p99 209,02 мс; 0 HTTP errors; 0 dropped iterations | PASS |
+| Authenticated read-only 100 RPS | 30 003 HTTP requests, 99,93 RPS average; 30 001/30 001 checks; p95 32,36 мс, p99 50,16 мс; 0 HTTP errors; 0 dropped iterations | PASS |
+
+**Интерпретация:** 100 RPS read-only acceptance и mixed workload прошли на GitHub-hosted CI runner. Средняя интенсивность mixed-профиля за весь интервал составила 93,08 RPS из-за ramp-up/ramp-down; это не следует описывать как ровные 100 RPS в каждую секунду. Тесты не являются замером публичного Render Free.
+
+Дополнительный read-only стресс на 150 RPS в предыдущем run #449392 не прошёл: 109,25 RPS, p95 5,13 с, p99 6,04 с и 11 739 dropped iterations. Этот результат сохранён как ограничение и не должен скрываться.
