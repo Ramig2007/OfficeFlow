@@ -88,7 +88,7 @@
 | 6.4 | E2E сценарии | `e2e/browser_smoke.py` (Playwright Chromium), Docker CI | **27/27** browser acceptance в PR CI #117: booking CRUD, VIP, room admin, регистрация/logout, роли, CSV, 375/768 px |
 | 6.5 | Load JMeter/k6 | 1000 независимых авторизаций, create/edit/cancel workload и mixed read/write сценарий | PR #20 CI: 1000/1000 логинов, 3749 циклов записи, mixed 85,03 HTTP RPS в среднем; тесты на CI runner, не Render |
 | 6.6 | Статический анализ | Ruff, Bandit, static audit, Django `check`, `check --deploy` и OpenAPI schema validation | PR #20 CI run #44843044175: Quality Success |
-| 6.7 | ≥70% покрытия | CI gate на `workspace.services` + `workspace.queries` | Последний подтверждённый результат: 91,67% и 77 pytest passed в PR CI #128; новые тесты увеличат общее число, но не подменяют модульное coverage |
+| 6.7 | ≥70% покрытия | CI gate на `workspace.services` + `workspace.queries` | PR #20 CI run #44843044175: 91,67% coverage и 92 pytest passed; покрытие не относится ко всему приложению |
 | 6.8 | Дефект-реестр с приоритетами | `docs/DEFECT_LOG_2026-11-19.md` — записи с ID, severity, шагами, ожидаемым/фактическим результатом, исправлением и доказательством | Реестр структурирован; открытые эксплуатационные риски отделены от подтверждённых дефектов |
 
 ## 7. Проектная документация
