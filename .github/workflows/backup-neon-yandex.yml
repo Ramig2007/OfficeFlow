@@ -195,12 +195,11 @@ jobs:
               cat /work/lifecycle-error.txt
               exit 1
             fi
-            versioning_json="$(aws s3api get-bucket-versioning --bucket "$YC_BUCKET" --endpoint-url "$endpoint" --output json)"
-            if [[ -z "$versioning_json" ]]; then
-              printf '%s\\n' '{}' > /work/versioning.json
-            else
-              printf '%s\\n' "$versioning_json" > /work/versioning.json
-            fi
+            versioning_status="$(aws s3api get-bucket-versioning --bucket "$YC_BUCKET" --endpoint-url "$endpoint" --query Status --output text)"
+            case "$versioning_status" in
+              Enabled|Suspended) printf '{"Status":"%s"}\\n' "$versioning_status" > /work/versioning.json ;;
+              *) printf '%s\\n' '{}' > /work/versioning.json ;;
+            esac
           '
 
           python3 scripts/configure_yandex_lifecycle.py --current "$lifecycle_dir/current.json" --versioning "$lifecycle_dir/versioning.json" --prefix "$prefix" --output "$lifecycle_dir/desired.json"
