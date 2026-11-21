@@ -37,7 +37,7 @@
 
 **Диагностика TLS (Render):** если при `manage.py migrate` было `SSL error: certificate verify failed`, исправление использует явный системный CA-bundle Debian (`/etc/ssl/certs/ca-certificates.crt`), установленный через `ca-certificates` в `Dockerfile.render`. Проверка сертификата и hostname в режиме `verify-full` **сохраняется**. IPv6 `Network is unreachable` может появляться вместе с ошибками IPv4 и не является доказательством отсутствия соединения по IPv4. Успешный CI не проверяет настоящий TLS к Neon: подтвердите миграции на Render и `/health/ready/`. Не подменяйте сертификаты и не меняйте `sslmode` на `disable`/`require` для обхода проверки.
 
-**Никогда не присылайте в чат пароль или полный URL Neon с паролем.**
+**Никогда не присылайте в чат пароль или полный URL Neon с паролем.** Не добавляйте connection string в отслеживаемые файлы, render.yaml, README, issue или PR. Для автоматического off-site backup допустимо сохранить отдельную копию direct connection string только в GitHub Settings → Secrets and variables → Actions как secret NEON_CONNECTION_STRING; см. docs/EXTERNAL_OPERATIONS.md.
 
 ## 3. Render: создать бесплатный Web Service
 
