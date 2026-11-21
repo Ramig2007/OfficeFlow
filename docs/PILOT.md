@@ -13,9 +13,11 @@
 | ОС / терминал | Windows / PowerShell 5.1 |
 | Контейнерная среда | Docker Desktop, Linux engine |
 | Приложение | Django 5.2, Python 3.12, Gunicorn |
-| База данных | Neon Free, Frankfurt, branch `production`, database `neondb`, direct connection (pooling off) |
-| Кэш / сессии | Redis 7 |
-| Reverse proxy | Nginx 1.27 |
+| База данных (локально) | PostgreSQL 16 |
+| База данных (облако) | Neon Free, Frankfurt, branch `production`, database `neondb`, direct connection (pooling off) |
+| Кэш / сессии (локально) | Redis 7 |
+| Reverse proxy (локально) | Nginx 1.27 |
+| Облачный runtime | Render Free, Gunicorn + WhiteNoise; Redis/Nginx/Caddy в Render-схеме не используются |
 | Локальный URL | `http://localhost:8080` |
 | Публичный URL | `https://officeflow-x6ay.onrender.com/` (Render Free + Neon Free) |
 | CPU/RAM хоста ручной проверки | Не зафиксированы |
