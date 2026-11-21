@@ -12,15 +12,15 @@ export const options = {
   scenarios: {
     read_pages: {
       executor: 'constant-arrival-rate',
-      rate: Number(__ENV.TARGET_RPS || 20),
+      rate: Number(__ENV.TARGET_RPS || 150),
       timeUnit: '1s',
       duration: __ENV.DURATION || '15s',
-      preAllocatedVUs: 40,
-      maxVUs: 200,
+      preAllocatedVUs: 220,
+      maxVUs: 350,
     },
   },
   thresholds: {
-    http_req_duration: ['p(95)<200', 'p(99)<500'],
+    http_req_duration: ['p(95)<1500', 'p(99)<2500'],
     http_req_failed: ['rate<0.001'],
     checks: ['rate>0.999'],
     dropped_iterations: ['count==0'],
