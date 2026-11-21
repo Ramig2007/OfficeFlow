@@ -53,7 +53,7 @@
 | 3.3 | Отказоустойчивость, репликация | топология и ограничения в `CAPACITY.md` | проектная рекомендация |
 | 3.4 | Backup/restore | CI #117 independent restore; GitHub Actions workflow `.github/workflows/backup-neon-r2.yml` для ежедневного Neon dump, полного restore test и загрузки в Cloudflare R2 | Workflow добавлен в PR-ветку; R2 bucket/secrets и первый успешный off-site backup ещё не настроены |
 | 3.5 | Healthcheck | `/health/live/`, `/health/ready/`, Compose checks; app healthy локально | Проверено локально |
-| 3.6 | Бенчмарки и обоснования | `CAPACITY.md`, k6 baseline и `SCALE_RESULTS_2026-11-21.md` | Подтверждены 1000 отдельных синтетических сессий и 3750 create/edit/cancel циклов в PR CI #106; production не измерен |
+| 3.6 | Бенчмарки и обоснования | `CAPACITY.md`, k6 baseline и `SCALE_RESULTS_2026-11-21.md` | 1000 синтетических сессий и 3749 create/edit/cancel циклов подтверждены PR #20 CI; смешанный профиль — 85,03 RPS в среднем при пике 100 RPS; production не измерен |
 
 ## 4. Модификация информационной системы
 
