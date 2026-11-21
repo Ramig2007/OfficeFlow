@@ -90,3 +90,12 @@ Production-readiness изменения объединены в основную
 Удалённое резервное копирование Neon → Yandex Object Storage теперь имеет первый успешный результат: GitHub Actions run #44948853007 восстановил 14 public tables в disposable PostgreSQL 18, загрузил архив и SHA-256 в bucket, скачал их обратно и прошёл проверку целостности. Lifecycle retention 30 дней отдельно не подтверждён.
 
 Публичный Render + Neon стенд отвечает на readiness endpoint; пользователь ранее подтвердил вход и создание переговорных. Это не подтверждает SLA 99,9% и не означает production-grade HA. Реальная доставка Telegram, длительное окно внешнего мониторинга, failover Neon/RTO/RPO, независимая формальная приёмка и скриншоты публичного интерфейса остаются открытыми.
+
+
+---
+
+## Дополнение 22.11.2026 — мониторинг и lifecycle automation
+
+Добавлен GitHub Actions workflow .github/workflows/uptime-monitor.yml: внешний probe к публичному Render readiness endpoint выполняется каждые 5 минут. Первый run #44950272193 прошёл (HTTP 200, JSON status=ready, latency 209,06 мс). Это одна проба; для 24/48-часовой выборки необходимо накопить реальные timestamps, пропуски запусков учитывать как интервалы без подтверждения. SLA 99,9% не заявляется.
+
+В workflow удалённого backup добавлен программный lifecycle management: получить текущие bucket rules и versioning status, сохранить unrelated rules, добавить 30-дневное удаление текущих объектов в officeflow/daily/, 30-дневное удаление noncurrent versions при versioning и abort незавершённых multipart upload через 7 дней, затем прочитать конфигурацию обратно и проверить. Первый run с этой новой настройкой ещё выполняется; до его успешного завершения retention не считать подтверждённым.
