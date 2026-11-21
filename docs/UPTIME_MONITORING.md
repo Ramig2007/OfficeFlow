@@ -1,18 +1,32 @@
 # OfficeFlow — длительный мониторинг доступности и SLA 99,9%
 
-## Важное ограничение
+## Текущее состояние
 
-Пока у OfficeFlow нет работающего публичного домена и независимого мониторингового узла, длительное измерение ещё не началось. Наличие health endpoint, Prometheus, Grafana и проверок CI само по себе не подтверждает SLA.
+Публичный Render + Neon сервис доступен по адресу https://officeflow-x6ay.onrender.com/; пользователь подтвердил Live, вход и создание переговорных. **Длительное измерение пока не началось**, потому что независимый внешний монитор ещё не создан. Наличие health endpoint, Prometheus, Grafana и проверок CI само по себе не подтверждает SLA.
 
-Для достоверной внешней проверки нужен Linux-хост с systemd, который **не размещён на том же VPS**, что и OfficeFlow. Он будет проверять публичный HTTPS endpoint и сохранять историю локально на мониторинговом хосте.
+Для быстрого старта рекомендуется UptimeRobot Free: до 50 мониторов, HTTP(s) проверки раз в 5 минут и email notifications через Alert Contacts. См. [официальный тариф](https://uptimerobot.com/pricing/) и [описание интервала](https://help.uptimerobot.com/en/articles/11360876-what-is-a-monitoring-interval-in-uptimerobot).
+
+### Быстрый запуск через UptimeRobot
+
+1. Создайте аккаунт на https://uptimerobot.com/ и подтвердите email.
+2. Нажмите **Add New Monitor** → **HTTP(s)**.
+3. Friendly Name: OfficeFlow Production — readiness.
+4. URL: https://officeflow-x6ay.onrender.com/health/ready/.
+5. Интервал: **5 minutes** (Free).
+6. В Alert Contacts добавьте подтверждённый email и сохраните monitor.
+7. Убедитесь, что состояние **Up**, и зафиксируйте дату/время начала измерения.
+
+Дополнительно можно мониторить https://officeflow-x6ay.onrender.com/accounts/login/ отдельным HTTP(s) monitor. Free-план даёт 5-минутную дискретность: краткие сбои между пробами могут быть пропущены, поэтому это внешняя оценка, а не договорная гарантия SLA. Частые запросы могут удерживать Render Free активным, но не превращают бесплатный тариф в SLA-платформу.
+
+Для более детальной минутной истории можно использовать приведённый ниже uptime_probe.py на независимом Linux-хосте с systemd. Такой хост должен находиться вне инфраструктуры приложения.
 
 ## Что проверяется
 
 Раз в 60 секунд scripts/uptime_probe.py отправляет HTTPS GET на:
 
-https://<домен-OfficeFlow>/health/ready/
+https://officeflow-x6ay.onrender.com/health/ready/
 
-HTTP 200 считается успешной пробой. HTTP 5xx/4xx, сетевые ошибки, DNS/TLS failures и timeout считаются неуспешными. Endpoint readiness проверяет Django, PostgreSQL и Redis, поэтому отказ критической зависимости отражается в измерении. Проверка проходит через публичный DNS/TLS/edge путь.
+HTTP 200 считается успешной пробой. HTTP 5xx/4xx, сетевые ошибки, DNS/TLS failures и timeout считаются неуспешными. В текущей Render + Neon конфигурации критическая внешняя зависимость — Neon PostgreSQL; Redis для этого варианта деплоя не используется. Отказ приложения или базы должен отражаться в readiness probe. Проверка проходит через публичный DNS/TLS/edge путь.
 
 Каждая проба записывается в JSONL: UTC timestamp, HTTP status, latency, success и error. Внешние зависимости не нужны — используются стандартная библиотека Python и проверка TLS сертификата.
 
