@@ -4,7 +4,7 @@
 
 Масштабные испытания выполняются только в одноразовом Docker Compose окружении GitHub Actions. Оно создаёт собственные PostgreSQL/Redis volumes, использует DEBUG=1, синтетические аккаунты и уничтожает volumes после завершения. Не направляйте эти сценарии на production, публичный VPS или базу с реальными данными.
 
-Workflow: `.github/workflows/scale-validation.yml`. Он запускается через `workflow_call` из `.github/workflows/ci.yml` для PR из ветки `scale-validation/**` либо вручную через `workflow_dispatch` на доступной workflow-ветке. Результаты k6 и снимки docker stats сохраняются в GitHub Actions artifact officeflow-scale-validation на 90 дней.
+Workflow: `.github/workflows/scale-validation.yml`. Он запускается через `workflow_call` из `.github/workflows/ci.yml` для PR из ветки `scale-validation/**`, вручную через `workflow_dispatch`, а также при push в main изменений самого workflow или четырёх основных k6 сценариев. Результаты k6 и снимки docker stats сохраняются в GitHub Actions artifact `officeflow-scale-validation` на 90 дней. Повторный прогон main после включения push trigger — run #44951299898 (выполняется на момент этой редакции).
 
 ## 1. 1000 независимых авторизованных сессий
 
