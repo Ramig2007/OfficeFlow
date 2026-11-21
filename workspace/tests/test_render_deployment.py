@@ -84,6 +84,47 @@ else:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+@pytest.mark.parametrize("length", [12, 16, 23])
+def test_render_accepts_neon_generated_password_below_24_chars(length):
+    env = render_env()
+    env["NEON_PASSWORD"] = "R" * length
+    result = run_render(
+        'import django; django.setup(); from django.conf import settings; '
+        'assert len(settings.DATABASES["default"]["PASSWORD"]) < 24',
+        env,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("password", ["short", "REPLACE_" + "z" * 24, "CHANGE_" + "z" * 24])
+def test_render_refuses_short_or_placeholder_database_password(password):
+    env = render_env()
+    env["NEON_PASSWORD"] = password
+    result = run_render("import django; django.setup()", env)
+    assert result.returncode != 0
+    assert "DB_PASSWORD must" in result.stderr
+
+
+def test_standard_production_keeps_24_character_database_password_policy():
+    env = render_env()
+    env.update({
+        "DJANGO_SETTINGS_MODULE": "officeflow.settings",
+        "SECRET_KEY": "S" * 60,
+        "ALLOWED_HOSTS": "example.com",
+        "CSRF_TRUSTED_ORIGINS": "https://example.com",
+        "DB_HOST": "postgres.example.com",
+        "DB_NAME": "officeflow",
+        "DB_USER": "officeflow",
+        "DB_PASSWORD": "R" * 16,
+        "COOKIE_SECURE": "1",
+        "SECURE_SSL_REDIRECT": "1",
+        "SECURE_HSTS_SECONDS": "31536000",
+    })
+    result = run_render("import django; django.setup()", env)
+    assert result.returncode != 0
+    assert "at least 24 characters" in result.stderr
+
+
 @pytest.mark.parametrize("key", ["NEON_HOST", "NEON_DATABASE", "NEON_USER", "NEON_PASSWORD"])
 def test_render_refuses_missing_neon_settings(key):
     env = render_env()
