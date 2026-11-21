@@ -119,7 +119,6 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.YC_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ru-central1
-          AWS_S3_ADDRESSING_STYLE: path
           AWS_EC2_METADATA_DISABLED: "true"
           YC_BUCKET: ${{ vars.YC_BUCKET }}
           YC_PREFIX: ${{ vars.YC_PREFIX }}
@@ -131,7 +130,7 @@ jobs:
           docker run --rm --entrypoint /bin/sh \
             -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
             -e AWS_DEFAULT_REGION -e AWS_EC2_METADATA_DISABLED \
-            -e AWS_S3_ADDRESSING_STYLE -e YC_BUCKET -e YC_PREFIX -e BACKUP_STAMP \
+            -e YC_BUCKET -e YC_PREFIX -e BACKUP_STAMP \
             --volume "$backup_dir:/backup" \
             amazon/aws-cli:2 -euc '
               endpoint="https://storage.yandexcloud.net"
