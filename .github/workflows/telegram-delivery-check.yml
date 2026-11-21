@@ -1,0 +1,66 @@
+name: OfficeFlow Telegram Delivery Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/telegram-delivery-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  telegram:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Send a one-time Telegram delivery test when credentials are configured
+        env:
+          BOT_TOKEN: ${{ secrets.ALERTMANAGER_TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.ALERTMANAGER_TELEGRAM_CHAT_ID }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -z "${BOT_TOKEN:-}" && -z "${CHAT_ID:-}" ]]; then
+            {
+              echo "## Telegram delivery check: NOT CONFIGURED"
+              echo "Add repository Actions secrets ALERTMANAGER_TELEGRAM_BOT_TOKEN and ALERTMANAGER_TELEGRAM_CHAT_ID, then run this workflow again."
+              echo "No Telegram message was sent."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "Telegram secrets are not configured; delivery test skipped."
+            exit 0
+          fi
+
+          if [[ -z "${BOT_TOKEN:-}" || -z "${CHAT_ID:-}" ]]; then
+            echo "::error::Both Telegram secrets must be configured together."
+            exit 1
+          fi
+
+          response="$RUNNER_TEMP/officeflow-telegram-response.json"
+          http_status="$(curl --silent --show-error --connect-timeout 10 --max-time 20 \
+            --output "$response" --write-out '%{http_code}' \
+            --request POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT_ID}" \
+            --data-urlencode "text=OfficeFlow: тестовая проверка доставки Telegram-уведомлений. Если вы видите это сообщение, bot token и chat ID настроены правильно.")"
+
+          if [[ "$http_status" != "200" ]]; then
+            echo "::error::Telegram Bot API returned HTTP $http_status."
+            exit 1
+          fi
+
+          python3 - "$response" <<'PY'
+          import json
+          import sys
+          with open(sys.argv[1], encoding="utf-8") as handle:
+              payload = json.load(handle)
+          if payload.get("ok") is not True or not payload.get("result", {}).get("message_id"):
+              raise SystemExit("Telegram Bot API did not confirm message delivery.")
+          print("Telegram Bot API confirmed the test message.")
+          PY
+
+          {
+            echo "## Telegram delivery check: PASS"
+            echo "Telegram Bot API accepted the test message and returned a message ID."
+            echo "This verifies bot token/chat ID delivery only; it does not prove a running Alertmanager instance is connected to the public Render service."
+          } >> "$GITHUB_STEP_SUMMARY"
