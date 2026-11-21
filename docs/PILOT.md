@@ -4,7 +4,7 @@
 **Объект:** OfficeFlow — онлайн-сервис бронирования переговорных комнат.  
 **Локальная среда ручной проверки:** Windows, PowerShell 5.1, Docker Desktop Linux engine, Docker Compose, `http://localhost:8080`.  
 **Облачный стенд:** Render Free + Neon Free, публичный URL `https://officeflow-x6ay.onrender.com/`; пользователь подтвердил статус Live, успешный вход и создание переговорных 21.11.2026.
-**Статус:** локальная ручная проверка 8/8; Chromium acceptance 27/27 в CI #117; PR #20 CI run #44843044175: Quality/Docker/Scale Validation Success, 92 pytest passed; Render + Neon Live подтверждены пользователем. В `main` добавлен Neon→R2 backup workflow; bucket/credentials, Telegram receiver и UptimeRobot monitor требуют настройки владельцем.
+**Статус:** локальная ручная проверка 8/8; Chromium acceptance 27/27 в CI #117; PR #20 CI run #44843044175: Quality/Docker/Scale Validation Success, 92 pytest passed; Render + Neon Live подтверждены пользователем. В `main` добавлен Neon→Yandex Object Storage backup workflow; bucket/credentials, Telegram receiver и UptimeRobot monitor требуют настройки владельцем.
 
 ## 1. Паспорт проверенной среды
 
@@ -56,7 +56,7 @@
 | Mixed read/write | 15 466 HTTP-запросов за 3 минуты, средняя фактическая скорость **85,03 RPS**, p95 **17,82 мс**, 0 ошибок, 0 dropped iterations; 1079 полных booking cycles | PR #20 CI run #44843044175; профиль был настроен на пик 100 RPS, но средняя фактическая скорость была ниже 100 |
 | PostgreSQL concurrency | PostgreSQL test: при одновременной попытке пересекающейся брони выигрывает только одна | Изолированный PostgreSQL CI |
 | Database/Redis recovery | Stop → readiness 503 → start → readiness 200 | Не является автоматическим HA failover |
-| Backup/restore | `INDEPENDENT_RESTORE_OK`, SHA-256, counts и GiST constraint в отдельном PostgreSQL контейнере | CI #117; тот же Docker-host. Новый Neon→R2 workflow добавлен, но bucket/secrets и первый удалённый backup ещё не настроены |
+| Backup/restore | `INDEPENDENT_RESTORE_OK`, SHA-256, counts и GiST constraint в отдельном PostgreSQL контейнере | CI #117; тот же Docker-host. Новый Neon→Yandex Object Storage workflow добавлен, но bucket/secrets и первый удалённый backup ещё не настроены |
 
 ### Новый смешанный нагрузочный профиль
 
@@ -71,7 +71,7 @@
 - Alertmanager: default receiver остаётся `null-receiver`, если credentials пусты; native Telegram receiver и HTTPS webhook поддерживаются генератором и проверяются в CI. Telegram bot token/chat ID и фактический test delivery ещё требуют настройки владельцем.
 - Публичный Render + Neon сервис Live; UptimeRobot monitor на `/health/ready/` ещё не создан. Для сдачи практики целевое внешнее наблюдение — 24–48 часов, с фиксацией фактического периода.
 - Backup: локальный dump и independent restore проверены CI #117.
-- Off-site: GitHub Actions workflow Neon dump → полный restore в disposable PostgreSQL → Cloudflare R2 upload/download + SHA-256 находится в `main`. Bucket, GitHub secrets/variables и первый успешный run ещё не настроены.
+- Off-site: GitHub Actions workflow Neon dump → полный restore в disposable PostgreSQL → Yandex Object Storage upload/download + SHA-256 находится в `main`. Bucket, GitHub secrets/variables и первый успешный run ещё не настроены.
 - SLA 99,9% не подтверждён: короткое 24–48-часовое наблюдение демонстрирует внешний контроль, но не является доказательством месячного/годового SLA.
 
 ## 6. Расширенный чек-лист опытной эксплуатации
@@ -92,7 +92,7 @@
 | PILOT-12 | CSV и фильтры | Ручной экспорт + Chromium CI #117 | Проверено |
 | PILOT-13 | IDOR/CSRF/mass assignment | API negative tests; Bandit | Частично; внешний DAST не выполнялся |
 | PILOT-14 | Метрики и доставка алертов | Prometheus rules; Telegram receiver renderer; UptimeRobot setup guide | Код готов и валидируется CI; Telegram credentials, test message и внешний monitor требуют настройки владельцем |
-| PILOT-15 | Backup/restore | Independent PostgreSQL restore CI #117; Neon→R2 GitHub Actions workflow в `main` | Restore в CI проверен; R2 bucket/secrets и первый удалённый backup ожидают настройки |
+| PILOT-15 | Backup/restore | Independent PostgreSQL restore CI #117; Neon→Yandex Object Storage GitHub Actions workflow в `main` | Restore в CI проверен; Yandex Object Storage bucket/secrets и первый удалённый backup ожидают настройки |
 | PILOT-16 | Mixed read/write load | Новый 5-минутный mixed 100 RPS и 5-минутный authenticated read 200 RPS профили в `scale-validation.yml` | Ожидается новый CI run; записывать только фактические k6 результаты |
 | PILOT-17 | Деградация PostgreSQL/Redis | Stop→503→start→200 в CI; managed Neon HA обоснован в `CAPACITY.md` | Локальная деградация проверена; провайдерский Neon failover не измерялся |
 | PILOT-18 | UX 375/768/1440 | Chromium CI #117 | Проверено |
@@ -104,7 +104,7 @@
 
 1. Render + Neon уже Live; полный внешний smoke всех бизнес-сценариев ещё не оформлен.
 2. Native Telegram receiver добавлен в код, но bot token/chat ID и реальное test delivery ещё не настроены.
-3. Нет R2 bucket/secrets и первого успешного off-site backup/restore.
+3. Нет Yandex Object Storage bucket/secrets и первого успешного off-site backup/restore.
 4. Собственная PostgreSQL streaming replication не внедрена; для managed Neon выбран архитектурный вариант provider-managed compute recovery, без собственного failover-теста и измерения RTO/RPO.
 5. UptimeRobot ещё не включён. Для сдачи практики требуется запустить монитор и собрать фактические 24–48 часов наблюдений; это не подтверждает SLA 99,9% за месяц/год.
 6. Нет независимой пользовательской приёмки.
