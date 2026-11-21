@@ -184,47 +184,26 @@ jobs:
           prefix="${YC_PREFIX:-officeflow/daily}"
 
           # Read existing rules first. Preserve every unrelated rule when adding ours.
-          docker run --rm --entrypoint /bin/sh \\
-            -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION -e AWS_EC2_METADATA_DISABLED \\
-            -e YC_BUCKET -e endpoint="$endpoint" \\
-            --volume "$lifecycle_dir:/work" \\
-            amazon/aws-cli:2.42.1 -euc '
-              if aws s3api get-bucket-lifecycle-configuration \\
-                --bucket "$YC_BUCKET" --endpoint-url "$endpoint" --output json \\
-                > /work/current.json 2>/work/lifecycle-error.txt; then
-                :
-              elif grep -q "NoSuchLifecycleConfiguration" /work/lifecycle-error.txt; then
-                printf "{\\"Rules\\":[]}\\n" > /work/current.json
-              else
-                cat /work/lifecycle-error.txt
-                exit 1
-              fi
-              aws s3api get-bucket-versioning --bucket "$YC_BUCKET" \\
-                --endpoint-url "$endpoint" --output json > /work/versioning.json
-            '
+          docker run --rm --entrypoint /bin/sh -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION -e AWS_EC2_METADATA_DISABLED -e YC_BUCKET -e endpoint="$endpoint" --volume "$lifecycle_dir:/work" amazon/aws-cli:2.42.1 -euc '
+            if aws s3api get-bucket-lifecycle-configuration --bucket "$YC_BUCKET" --endpoint-url "$endpoint" --output json > /work/current.json 2>/work/lifecycle-error.txt; then
+              :
+            elif grep -q "NoSuchLifecycleConfiguration" /work/lifecycle-error.txt; then
+              printf '%s\\n' '{"Rules":[]}' > /work/current.json
+            else
+              cat /work/lifecycle-error.txt
+              exit 1
+            fi
+            aws s3api get-bucket-versioning --bucket "$YC_BUCKET" --endpoint-url "$endpoint" --output json > /work/versioning.json
+          '
 
-          python3 scripts/configure_yandex_lifecycle.py \\
-            --current "$lifecycle_dir/current.json" \\
-            --versioning "$lifecycle_dir/versioning.json" \\
-            --prefix "$prefix" \\
-            --output "$lifecycle_dir/desired.json"
+          python3 scripts/configure_yandex_lifecycle.py --current "$lifecycle_dir/current.json" --versioning "$lifecycle_dir/versioning.json" --prefix "$prefix" --output "$lifecycle_dir/desired.json"
 
-          docker run --rm --entrypoint /bin/sh \\
-            -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION -e AWS_EC2_METADATA_DISABLED \\
-            -e YC_BUCKET -e endpoint="$endpoint" \\
-            --volume "$lifecycle_dir:/work" \\
-            amazon/aws-cli:2.42.1 -euc '
-              aws s3api put-bucket-lifecycle-configuration --bucket "$YC_BUCKET" \\
-                --lifecycle-configuration file:///work/desired.json \\
-                --endpoint-url "$endpoint"
-              aws s3api get-bucket-lifecycle-configuration --bucket "$YC_BUCKET" \\
-                --endpoint-url "$endpoint" --output json > /work/verified.json
-            '
+          docker run --rm --entrypoint /bin/sh -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION -e AWS_EC2_METADATA_DISABLED -e YC_BUCKET -e endpoint="$endpoint" --volume "$lifecycle_dir:/work" amazon/aws-cli:2.42.1 -euc '
+            aws s3api put-bucket-lifecycle-configuration --bucket "$YC_BUCKET" --lifecycle-configuration file:///work/desired.json --endpoint-url "$endpoint"
+            aws s3api get-bucket-lifecycle-configuration --bucket "$YC_BUCKET" --endpoint-url "$endpoint" --output json > /work/verified.json
+          '
 
-          python3 scripts/configure_yandex_lifecycle.py \\
-            --verify "$lifecycle_dir/verified.json" \\
-            --versioning "$lifecycle_dir/versioning.json" \\
-            --prefix "$prefix"
+          python3 scripts/configure_yandex_lifecycle.py --verify "$lifecycle_dir/verified.json" --versioning "$lifecycle_dir/versioning.json" --prefix "$prefix"
 
           {
             echo "## Yandex Object Storage lifecycle verified"
