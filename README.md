@@ -13,7 +13,7 @@
 | Playwright E2E | **27/27** в CI #117, включая бронирования, VIP, роли, регистрацию, logout, CSV и 375/768 px | Изолированная CI-база, не заменяет независимую ручную приёмку |
 | k6, авторизованное чтение | 200 целевых RPS, ~199,2 HTTP RPS, p95 13,19 мс, 0% HTTP-ошибок | GET с одной сессией; не 1000 пользователей |
 | k6, создание/изменение/отмена | **3749** полных циклов (11 247 операций записи), 18 745/18 745 checks, p95 **14,47 мс**, 0 HTTP-ошибок и 0 dropped iterations | PR #20 CI run #44843044175; ступень до 20 циклов/с, до 44 активных VU | 
-| k6, 1000 пользователей | **1000/1000** независимых авторизаций, пик **1000 VU**, 41 294 HTTP-запроса, 0 HTTP-ошибок, p95 **9,50 мс** | PR #20 CI run #44843044175; тестовый GitHub runner, не Render production |
+| k6, mixed read/write | **15 466 HTTP-запросов**, средняя фактическая скорость **85,03 RPS**, p95 **17,82 мс**, 0 HTTP-ошибок, 0 dropped iterations | PR #20 CI run #44843044175; профиль настроен на пик 100 RPS, устойчивые 100 RPS не подтверждены |
 | PostgreSQL backup/restore | **INDEPENDENT_RESTORE_OK** в CI #117; новый workflow дополнительно выполняет полный restore Neon dump в отдельный PostgreSQL 17 и remote SHA-256 check перед загрузкой в R2 | Реальный R2 bucket, GitHub secrets и первый успешный workflow run ещё не настроены |
 | Prometheus / Alertmanager | Локально 3/3 targets UP и 5 правил проверены; HTTPS webhook renderer есть | Реальный Alertmanager recipient не задан; внешние email-уведомления публичного Render будут настраиваться через UptimeRobot |
 | GitHub Actions | PR #20 run #44843044175: Quality, Docker и Scale Validation — Success; main run #44853052929: Quality + Docker — Success | CI подтверждает проверенный код и сценарии runner, но не SLA публичного Render |
