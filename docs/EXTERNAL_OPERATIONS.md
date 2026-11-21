@@ -178,7 +178,7 @@ Invoke-RestMethod -Uri "http://localhost:9093/api/v2/alerts" -Method Post -Conte
 | Render + Neon production URL | Пользователь подтвердил Live, вход и создание переговорных |
 | UptimeRobot monitor | Инструкция готова; аккаунт, email contact и первый Up ещё требуют настройки владельцем |
 | Внешние email alerts | Будут включены через Alert Contacts UptimeRobot после подтверждения email |
-| Alertmanager webhook | Код и тесты есть; endpoint/получатель ещё не выбран и доставка не подтверждена |
+| Alertmanager Telegram | Native receiver поддерживается кодом и проверяется CI; bot token/chat ID и фактическое test delivery ещё требуют настройки владельцем |
 | GitHub Actions backup workflow | Добавлен; требует Neon/R2 secrets и variables |
 | Cloudflare R2 bucket | Требует создания владельцем |
 | Первая удалённая копия | Не подтверждена до успешного workflow run |
