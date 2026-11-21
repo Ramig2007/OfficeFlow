@@ -1,0 +1,49 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "OfficeFlow: Start local stack",
+      "type": "shell",
+      "command": "docker compose up -d --build",
+      "problemMatcher": []
+    },
+    {
+      "label": "OfficeFlow: Apply migrations",
+      "type": "shell",
+      "command": "docker compose exec app python manage.py migrate --noinput",
+      "dependsOn": "OfficeFlow: Start local stack",
+      "problemMatcher": []
+    },
+    {
+      "label": "OfficeFlow: Seed demo data",
+      "type": "shell",
+      "command": "docker compose exec app python manage.py seed_demo",
+      "dependsOn": "OfficeFlow: Apply migrations",
+      "problemMatcher": []
+    },
+    {
+      "label": "OfficeFlow: Show services",
+      "type": "shell",
+      "command": "docker compose ps",
+      "problemMatcher": []
+    },
+    {
+      "label": "OfficeFlow: Follow app logs",
+      "type": "shell",
+      "command": "docker compose logs -f app",
+      "problemMatcher": []
+    },
+    {
+      "label": "OfficeFlow: Start observability",
+      "type": "shell",
+      "command": "docker compose --profile observability up -d",
+      "problemMatcher": []
+    },
+    {
+      "label": "OfficeFlow: Stop stack (keep data)",
+      "type": "shell",
+      "command": "docker compose down",
+      "problemMatcher": []
+    }
+  ]
+}

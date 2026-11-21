@@ -100,3 +100,24 @@ https://github.com/Ramig2007/OfficeFlow/actions/runs/44942581093
 **Интерпретация:** 100 RPS read-only acceptance и mixed workload прошли на GitHub-hosted CI runner. Средняя интенсивность mixed-профиля за весь интервал составила 93,08 RPS из-за ramp-up/ramp-down; это не следует описывать как ровные 100 RPS в каждую секунду. Тесты не являются замером публичного Render Free.
 
 Дополнительный read-only стресс на 150 RPS в предыдущем run #449392 не прошёл: 109,25 RPS, p95 5,13 с, p99 6,04 с и 11 739 dropped iterations. Этот результат сохранён как ограничение и не должен скрываться.
+
+
+---
+
+## 8. Main branch Scale Validation #3 — повторное подтверждение (22.11.2026)
+
+Источник: [GitHub Actions run #44951299898](https://github.com/Ramig2007/OfficeFlow/actions/runs/44951299898), branch `main`, commit `4440bf8c5d7375237b9bcae1f6bb9e3717d48e1e`.  
+Artifact: `officeflow-scale-validation`, ID `14727005489` (содержит k6 logs, JSON summaries, exit-codes.txt и Docker stats).
+
+Все четыре k6 процесса завершились с кодом **0**. В логах каждый профиль помечен k6 как успешный; итоговый workflow job `Require all scale tests to pass` — Success. Все испытания выполнялись на одноразовом GitHub-hosted Docker Compose runner с синтетическими пользователями и тестовой БД. Публичный Render не нагружался.
+
+| Профиль | Фактический результат | Итог |
+|---|---|---|
+| 1000 concurrent authenticated users | 1000/1000 login page checks и 1000/1000 login submissions; max 1000 VU, удержание 1000 VU на 3 минуты; 41 302 HTTP requests, 39 302 authenticated API iterations, 0 HTTP errors, 100% checks; p95 6,15 мс, max 273,36 мс | PASS |
+| Booking create/edit/cancel | 3750 полных циклов; 3750 create + 3750 edit + 3750 cancel; 11 350 HTTP requests, 18 750/18 750 checks, 0 HTTP errors, 0 dropped iterations; p95 9,73 мс | PASS |
+| Mixed target 100 RPS | 33 689 HTTP requests; 93,06 RPS average over full window including ramp-up/ramp-down; 26 369 authenticated reads и 2340 полных booking cycles; p95 12,46 мс, p99 18,77 мс; 0 HTTP errors, 0 dropped iterations; 38 069/38 069 checks | PASS |
+| Authenticated read-only 100 RPS | 30 003 HTTP requests; 99,96 RPS average; 30 001/30 001 checks; p95 12,06 мс, p99 14,93 мс; 0 HTTP errors, 0 dropped iterations | PASS |
+
+**Интерпретация:** 1000 независимых сессий, изолированный write lifecycle, смешанный профиль и authenticated read около 100 RPS повторно прошли на CI. Mixed-профиль усредняет ramp-up/ramp-down, поэтому 93,06 RPS — среднее за весь интервал, а не утверждение о ровно 100 RPS каждую секунду. 1000 VU не означает 1000 одновременных HTTP-запросов. Эти результаты не являются замером публичного Render Free.
+
+Дополнительный read-only стресс на 150 RPS из предыдущего PR #37 прогона по-прежнему не пройден: 109,25 RPS, p95 5,13 с, p99 6,04 с и 11 739 dropped iterations. Этот результат остаётся явным ограничением.

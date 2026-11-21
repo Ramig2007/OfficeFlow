@@ -2,25 +2,18 @@
 
 **OfficeFlow** — учебное веб-приложение для бронирования переговорных, построенное вокруг недельного расписания. Отдельный проект, не основанный на MeetingRoomBooking. Язык интерфейса: русский. Стек: Django 5.2 LTS, PostgreSQL, Redis, Django REST Framework, Nginx, Caddy (production TLS), Docker Compose, Prometheus, Grafana.
 
-> **Актуальное состояние на 21.11.2026:** публичный исходный репозиторий `Ramig2007/OfficeFlow`; PR #20 и PR #33–#36 объединены в `main`. Render Free + Neon Free развёрнуты: https://officeflow-x6ay.onrender.com/ . Пользователь подтвердил Render **Live**, успешный вход и создание переговорных. Main CI run #44856385184 после PR #36: Quality + Docker — Success; PR #20 CI run #44843044175 подтвердил 92 pytest passed, coverage 91,67%. В PR #37 workflow ежедневного Neon backup переведён на Yandex Object Storage; приватный bucket, service account и GitHub secrets ещё требуют настройки владельцем. Текущая PR #37 добавляет native Telegram receiver и постоянные 5-минутные/5-минутные k6 профили на 100 RPS mixed и 200 RPS authenticated read; окончательные значения будут опубликованы после CI. UptimeRobot HTTP(s) monitor на публичном readiness endpoint создан и показывает Up; на момент пользовательского скриншота накоплено 14 ч 52 мин наблюдения, 99,931% за отображаемые 24 часа и один инцидент длительностью 37 секунд. Целевое окно для отчёта — 24–48 часов; это не подтверждает месячный SLA 99,9%. GHCR package остаётся Private.
-
-## Подтверждённые результаты испытаний — по 21.11.2026
-
-| Проверка | Фактический результат | Ограничение |
-|---|---|---|
-| Django / pytest | **92 passed** в PR #20 CI run #44843044175 | Покрытие измеряется только для `workspace.services` и `workspace.queries` |
-| Покрытие критических модулей | 91,67% в CI (требование ≥70%) | Не равно покрытию всей системы |
-| Playwright E2E | **27/27** в CI #117, включая бронирования, VIP, роли, регистрацию, logout, CSV и 375/768 px | Изолированная CI-база, не заменяет независимую ручную приёмку |
-| k6, авторизованное чтение | 200 целевых RPS, ~199,2 HTTP RPS, p95 13,19 мс, 0% HTTP-ошибок | GET с одной сессией; не 1000 пользователей |
-| k6, создание/изменение/отмена | **3749** полных циклов (11 247 операций записи), 18 745/18 745 checks, p95 **14,47 мс**, 0 HTTP-ошибок и 0 dropped iterations | PR #20 CI run #44843044175; ступень до 20 циклов/с, до 44 активных VU | 
-| k6, 1000 пользователей | **1000/1000** независимых авторизаций, пик **1000 VU**, 41 294 HTTP-запроса, 0 HTTP-ошибок, p95 **9,50 мс** | PR #20 CI run #44843044175; тестовый GitHub runner, не Render production |
-| k6, mixed read/write | **15 466 HTTP-запросов**, средняя фактическая скорость **85,03 RPS**, p95 **17,82 мс**, 0 HTTP-ошибок, 0 dropped iterations | PR #20 CI run #44843044175; профиль настроен на пик 100 RPS, устойчивые 100 RPS не подтверждены |
-| PostgreSQL backup/restore | **INDEPENDENT_RESTORE_OK** в CI #117; новый workflow дополнительно выполняет полный restore Neon dump в отдельный PostgreSQL 17 и remote SHA-256 check перед загрузкой в Yandex Object Storage | Yandex bucket, GitHub secrets и первый успешный workflow run ещё не настроены |
-| Prometheus / Alertmanager | Локально 3/3 targets UP и 5 правил проверены; HTTPS webhook renderer есть | Реальный Alertmanager recipient не задан; внешние email-уведомления публичного Render будут настраиваться через UptimeRobot |
-| GitHub Actions | PR #20 run #44843044175: Quality, Docker и Scale Validation — Success; main run #44853052929: Quality + Docker — Success | CI подтверждает проверенный код и сценарии runner, но не SLA публичного Render |
-| GHCR | `ghcr.io/ramig2007/officeflow:latest` опубликован | Пакет **Private**; публичные исходники можно собрать самостоятельно |
-
-Подробности: [`docs/STATUS.md`](docs/STATUS.md), [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md), [`docs/EXTERNAL_OPERATIONS.md`](docs/EXTERNAL_OPERATIONS.md), [`docs/UPTIME_MONITORING.md`](docs/UPTIME_MONITORING.md).
+> **Текущее состояние на 22.11.2026:** исходный репозиторий публичен, основная ветка `main`. Публичный стенд Render + Neon: https://officeflow-x6ay.onrender.com/ .
+>
+> - Main CI **#235 — Success**: quality checks, production image, runtime smoke, Chromium E2E, многопользовательская запись, независимый PostgreSQL restore, DB/Redis recovery и observability validation.
+> - Main Scale Validation **#3 — Success**: 1000/1000 авторизаций и максимум 1000 VU; 3750 циклов create/edit/cancel; mixed 93,06 RPS average; authenticated read 99,96 RPS; 0 HTTP errors и 0 dropped iterations.
+> - Off-site backup **#13 — Success**: полный restore 14 таблиц в PostgreSQL 18, Yandex Object Storage upload/download, SHA-256 и Lifecycle retention 30 дней.
+> - Grafana Dashboard содержит 9 панелей; CI подтвердил 3/3 Prometheus targets и пять дополнительных метрик PostgreSQL/Redis. Dashboard запускается локальным Docker Compose observability-профилем, не на Render Free.
+> - UptimeRobot monitor “OfficeFlow Production” настроен на HTTP(s) readiness endpoint с интервалом 5 минут. Последний сохранённый скриншот (21.11.2026 18:04:56 UTC): Up, возраст монитора 14 ч 52 мин, 99,931% за отображаемые 24 часа и один инцидент 37 секунд. Это исторический снимок, не текущая проверка; для отчёта нужно зафиксировать актуальное 24–48-часовое окно. Email contact создан, но Test Notification не подтверждён.
+> - Реальная доставка Telegram пока не подтверждена: нужны GitHub Actions secrets `ALERTMANAGER_TELEGRAM_BOT_TOKEN` и `ALERTMANAGER_TELEGRAM_CHAT_ID`.
+>
+> **Ограничения:** все нагрузочные цифры получены на изолированном GitHub Actions runner, а не на Render Free. Дополнительный read-only стресс 150 RPS не прошёл (109,25 RPS, p95 5,13 с, 11 739 dropped iterations). Месячный SLA 99,9%, внешний DAST, Neon failover/RTO/RPO и независимая формальная приёмка не подтверждены.
+>
+> Подробности: [фактический статус](docs/STATUS.md), [матрица требований](docs/REQUIREMENTS.md), [нагрузочные результаты](docs/SCALE_RESULTS_2026-11-21.md), [резервное копирование](docs/BACKUP_VALIDATION.md), [внешний мониторинг](docs/UPTIME_MONITORING.md), [итоговая готовность](docs/FINAL_READINESS_2026-11-22.md), [инструкция VS Code для Windows](docs/VS_CODE_SETUP.md).
 
 ## Возможности
 
@@ -224,14 +217,15 @@ docs/                       матрица ИСП49, архитектура, э�
 8. `docs/PROJECT_PLAN.md` — план работ, трудозатраты и критерии готовности.
 9. `docs/RISKS.md` — реестр рисков.
 10. `docs/DEPLOYMENT.md` — инструкция VPS/HTTPS.
-11. `docs/FINAL_READINESS_2026-11-20.md` — актуальная оценка готовности.
+11. `docs/FINAL_READINESS_2026-11-22.md` — актуальная оценка готовности.
 12. `docs/VERIFICATION_2026-11-21.md` — подтверждённые результаты CI #93, 21 E2E, k6 и отказоустойчивости readiness.
 13. `docs/SCALE_VALIDATION.md` — методика испытания 1000 независимых сессий и нагрузки на создание/редактирование/отмену.
 14. `docs/UPTIME_MONITORING.md` — внешний минутный мониторинг и расчёт доступности 99,9%.
 15. `docs/SCALE_RESULTS_2026-11-21.md` — фактические результаты 1000 VU, 3750 полных циклов бронирования, показатели CPU/RAM и журнал CI #106.
 16. `docs/RENDER_NEON_DEPLOYMENT.md` — бесплатный Render Free + Neon Free; фактический публичный сервис Live.
 17. `docs/EXTERNAL_OPERATIONS.md` — UptimeRobot, внешние уведомления и ежедневные Neon backups в Yandex Object Storage.
+18. `docs/VS_CODE_SETUP.md` — перенос актуального `main` в VS Code на Windows и запуск через Docker Compose.
 
 ### Оговорки для защиты
 
-Исходный код опубликован в публичном GitHub-репозитории `Ramig2007/OfficeFlow`; GHCR package остаётся приватным. Публичный Render + Neon сервис подтверждён пользователем как Live. Нагрузочные показатели k6 подтверждаются только результатами CI и не переносятся на публичный Render. Для сдачи практики собирается фактическое 24–48-часовое внешнее наблюдение UptimeRobot; короткое окно не доказывает месячный/годовой SLA 99,9%. Off-site backup не считается настроенным до первого успешного Yandex Object Storage workflow run.
+Исходный код опубликован в публичном GitHub-репозитории `Ramig2007/OfficeFlow`; GHCR package остаётся приватным. Публичный Render + Neon сервис ранее подтверждён пользователем как Live. Нагрузочные показатели k6 подтверждаются только результатами CI и не переносятся на публичный Render. UptimeRobot monitor настроен на 5-минутный интервал; последний сохранённый снимок показывал 14 ч 52 мин наблюдения, но для отчёта нужен актуальный снимок после полного 24–48-часового окна. Email Test Notification и реальная доставка Telegram ещё не подтверждены. Off-site backup, полный restore и Lifecycle retention 30 дней уже прошли workflow #13.
