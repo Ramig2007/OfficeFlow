@@ -52,8 +52,8 @@ Workflow безопасно пропускает работу, если secrets/
 | P1 | Cloudflare R2 | Создать private bucket и S3 token Object Read & Write только для bucket | Bucket создан, доступ ограничен |
 | P1 | GitHub backup secrets | Добавить NEON_CONNECTION_STRING, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY как Secrets; R2_ACCOUNT_ID, R2_BUCKET как Variables | Ручной workflow run завершился с RESTORE_TEST_OK и OFFSITE_BACKUP_OK |
 | P1 | UptimeRobot | Создать HTTP(s) monitor для https://officeflow-x6ay.onrender.com/health/ready/ с 5-минутным интервалом и подтвердить email Alert Contact | Monitor Up; дата начала измерения зафиксирована |
-| P1 | Alertmanager recipient | Выбрать совместимый HTTPS webhook и задать URL/token в локальном секретном .env | Test alert фактически доставлен |
-| P1 | 30-дневное измерение | Не прерывать внешний мониторинг минимум 30 дней | Свежий отчёт за 30 дней с uptime, инцидентами и оценкой простоя |
+| P1 | Alertmanager recipient | Создать Telegram bot, добавить bot token и chat ID в локальный секретный `.env`, запустить observability profile | Контрольное сообщение фактически доставлено в Telegram |
+| P1 | Краткосрочное внешнее наблюдение | Включить UptimeRobot на 5 минут и собрать 24–48 часов до сдачи практики | Скриншоты статуса, uptime, фактического периода, проверок и инцидентов |
 | P1 | Word-отчёт | Сделать реальные скриншоты публичного интерфейса и обновить отчёт | Рисунки и ссылки в тексте совпадают |
 | P1 | Независимая приёмка | Попросить наставника/одногруппника пройти сценарии | Дата, роль, результаты и подпись/согласование, если требуется |
 | P2 | PostgreSQL HA | Выделенная репликация и failover drill | Измеренные RTO/RPO и успешное переключение |
