@@ -26,7 +26,7 @@
 
 | Изменение | Файл | Текущий статус |
 |---|---|---|
-| Ежедневный Neon off-site backup | .github/workflows/backup-neon-r2.yml в `main` | Workflow готов к запуску; нужны GitHub secrets/variables и приватный Yandex Object Storage bucket |
+| Ежедневный Neon off-site backup | .github/workflows/backup-neon-yandex.yml в PR #37 | Workflow готов к запуску; нужны GitHub secrets/variables и приватный Yandex Object Storage bucket |
 | Уведомления Alertmanager | `scripts/render_alertmanager_config.py`, `compose.yaml` | В текущей PR добавляется native Telegram receiver, CI validation и инструкция реальной доставки |
 | Инструкция внешних операций | docs/EXTERNAL_OPERATIONS.md | Подготовлены шаги UptimeRobot, Telegram Alertmanager, Yandex Object Storage и GitHub Secrets |
 | Обновление статуса проекта | README.md, docs/STATUS.md, docs/REQUIREMENTS.md, docs/PILOT.md | Синхронизируются с Live deploy и PR #20 evidence |
@@ -50,7 +50,7 @@ Workflow безопасно пропускает работу, если secrets/
 | Приоритет | Задача | Что сделать | Доказательство закрытия |
 |---|---|---|---|
 | P1 | Yandex Object Storage | Создать private bucket и S3 token Object Read & Write только для bucket | Bucket создан, доступ ограничен |
-| P1 | GitHub backup secrets | Добавить NEON_CONNECTION_STRING, YC_ACCESS_KEY_ID, YC_SECRET_ACCESS_KEY как Secrets; YC_BUCKET, YC_BUCKET как Variables | Ручной workflow run завершился с RESTORE_TEST_OK и OFFSITE_BACKUP_OK |
+| P1 | GitHub backup secrets | Добавить NEON_CONNECTION_STRING, YC_ACCESS_KEY_ID, YC_SECRET_ACCESS_KEY как Secrets; YC_BUCKET и (необязательно) YC_PREFIX как Variables | Ручной workflow run завершился с RESTORE_TEST_OK и OFFSITE_BACKUP_OK |
 | P1 | UptimeRobot | Создать HTTP(s) monitor для https://officeflow-x6ay.onrender.com/health/ready/ с 5-минутным интервалом и подтвердить email Alert Contact | Monitor Up; дата начала измерения зафиксирована |
 | P1 | Alertmanager recipient | Создать Telegram bot, добавить bot token и chat ID в локальный секретный `.env`, запустить observability profile | Контрольное сообщение фактически доставлено в Telegram |
 | P1 | Краткосрочное внешнее наблюдение | Включить UptimeRobot на 5 минут и собрать 24–48 часов до сдачи практики | Скриншоты статуса, uptime, фактического периода, проверок и инцидентов |
@@ -72,7 +72,7 @@ Workflow безопасно пропускает работу, если secrets/
 1. Объединить текущую PR-ветку после успешного CI.
 2. Создать приватный Yandex Object Storage bucket, service account и S3 static access key; добавить GitHub Actions secrets/variables.
 3. Запустить backup workflow вручную и проверить оба маркера успеха.
-4. Создать UptimeRobot monitor и зафиксировать дату начала.
+4. UptimeRobot уже создан и Up; продолжить наблюдение до 24–48 часов и сохранить скриншот с итоговыми показателями.
 5. Выбрать канал для Alertmanager и проверить test alert.
 6. Перед сдачей практики сохранить фактический UptimeRobot report и скриншоты за накопленные 24–48 часов; указать точные даты и не заявлять месячный SLA.
 
