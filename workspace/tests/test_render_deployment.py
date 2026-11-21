@@ -208,19 +208,37 @@ def test_render_refuses_missing_secret():
 
 
 @pytest.mark.django_db
-def test_render_admin_bootstrap_creates_once_and_never_resets_existing_password(monkeypatch):
+def test_render_admin_bootstrap_repairs_the_exact_configured_account(monkeypatch):
+    User = get_user_model()
+    user = User.objects.create_user(
+        username="first_render_admin",
+        password="old-member-password",
+        role=User.Roles.MEMBER,
+    )
+    unrelated = User.objects.create_user(
+        username="unrelated_member",
+        password="unrelated-member-password",
+        role=User.Roles.MEMBER,
+    )
+
     monkeypatch.setenv("BOOTSTRAP_ADMIN_USERNAME", "first_render_admin")
     monkeypatch.setenv("BOOTSTRAP_ADMIN_PASSWORD", "officeflow-ci-test-password-123456")
     call_command("bootstrap_render_admin")
-    User = get_user_model()
-    user = User.objects.get(username="first_render_admin")
-    assert user.is_superuser and user.is_staff and user.role == User.Roles.ADMIN
+
+    user.refresh_from_db()
+    unrelated.refresh_from_db()
+    assert user.is_superuser and user.is_staff and user.is_active
+    assert user.role == User.Roles.ADMIN
     assert user.check_password("officeflow-ci-test-password-123456")
+    assert not user.check_password("old-member-password")
+    assert not unrelated.is_superuser
+    assert unrelated.role == User.Roles.MEMBER
+    assert unrelated.check_password("unrelated-member-password")
 
     monkeypatch.setenv("BOOTSTRAP_ADMIN_PASSWORD", "different-ci-test-password-123456")
     call_command("bootstrap_render_admin")
     user.refresh_from_db()
-    assert user.check_password("officeflow-ci-test-password-123456")
+    assert user.check_password("different-ci-test-password-123456")
 
 
 @pytest.mark.django_db
