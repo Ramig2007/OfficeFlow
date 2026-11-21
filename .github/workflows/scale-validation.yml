@@ -1,6 +1,14 @@
 name: OfficeFlow Scale Validation
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/scale-validation.yml"
+      - "scripts/loadtest-1000-users.js"
+      - "scripts/loadtest-booking-create-edit-cancel.js"
+      - "scripts/loadtest-mixed-100-rps.js"
+      - "scripts/loadtest-auth-read.js"
   workflow_call:
   workflow_dispatch:
 
