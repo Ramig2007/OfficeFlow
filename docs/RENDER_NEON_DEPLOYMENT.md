@@ -24,12 +24,13 @@
 1. Откройте https://console.neon.tech, создайте **отдельный проект OfficeFlow** на тарифе Free. Не используйте базу MeetingRoomBooking, чтобы не смешать схемы, миграции и данные.
 2. По возможности выберите регион **AWS Europe (Frankfurt / eu-central-1)**, соответствующий Render Frankfurt.
 3. Откройте Neon project → **Connect** и отключите **Connection pooling**, выбрав **Direct connection** (без `-pooler` в имени хоста). Приложение использует прямое подключение: оно также необходимо для миграций и работы с PostgreSQL GiST.
-4. В карточке подключения сохраните у себя:
+4. **Рекомендуемый вариант:** в Connect с выключенным Connection pooling нажмите **Copy snippet** для всей строки `postgresql://...` (без команды `psql`, кавычек или обратных апострофов). В Render → Web Service → Environment создайте секретную переменную **`NEON_CONNECTION_STRING`** и вставьте туда строку **целиком**. Это предотвращает ошибки при ручном копировании пароля и его URL-кодировании. Сохраните через **Save, deploy**. Если эта переменная задана, OfficeFlow использует её **вместо** старых `NEON_HOST`, `NEON_DATABASE`, `NEON_USER`, `NEON_PASSWORD`. Значения `sslmode=require` из строки не ослабляют нашу принудительную проверку TLS `sslmode=verify-full`.
+5. **Альтернативный вариант:** без `NEON_CONNECTION_STRING` используйте четыре отдельных поля из окна Connect:
    - **host**: `ep-....eu-central-1.aws.neon.tech` → `NEON_HOST` (только хост, без `postgresql://` и порта);
    - **database** → `NEON_DATABASE` (часто `neondb`);
    - **role / user** → `NEON_USER` (часто `neondb_owner`);
-   - **password** → `NEON_PASSWORD`.
-5. Для Render + Neon используйте **точно тот пароль, который Neon выдал** для выбранной роли. Neon создаёт случайные пароли с не менее чем 60 битами энтропии; их длина может быть меньше 24 символов. Конфигурация `officeflow.settings_render` допускает такие пароли от **12 символов**, тогда как обычное production-развёртывание OfficeFlow по-прежнему требует минимум 24 символа. Не дописывайте символы к выданному Neon паролю: это вызовет `password authentication failed`. После сброса пароля замените `NEON_PASSWORD` в Render → Environment и сохраните изменения.
+   - **password** → `NEON_PASSWORD` (именно сырой пароль, не URL-кодированная подстрока).
+   Neon создаёт случайные пароли с не менее чем 60 битами энтропии; для Render допускаются пароли от **12 символов**, в обычном production-развёртывании OfficeFlow по-прежнему требуется минимум 24. Не дописывайте символы к выданному Neon паролю.
 6. Подключение будет происходить с `sslmode=verify-full` и `sslrootcert=/etc/ssl/certs/ca-certificates.crt`: проверяются TLS-сертификат и соответствие имени сервера. Не отключайте проверку сертификата.
 
 Важно: в OfficeFlow есть миграция `0002_postgres_overlap_guard`, создающая расширение `btree_gist` и PostgreSQL exclusion constraint для защиты от двойного бронирования. Используйте роль Neon, имеющую право на миграции и создание расширения. Проверьте в Render Logs, что миграция завершилась успешно.
@@ -45,11 +46,11 @@
 1. Откройте https://dashboard.render.com → **New** → **Blueprint**.
 2. Подключите репозиторий `https://github.com/Ramig2007/OfficeFlow` (ветка `main`). Выберите конфигурацию `render.yaml`.
 3. Render создаст один Docker Web Service с тарифом **Free** и регионом **Frankfurt**. Не создавайте Render Postgres: база уже размещена в Neon.
-4. При первоначальной настройке Blueprint заполните четыре переменные `NEON_HOST`, `NEON_DATABASE`, `NEON_USER`, `NEON_PASSWORD`. Они обозначены `sync: false`, поэтому не сохраняются в файле репозитория.
+4. Blueprint изначально запрашивает четыре переменные `NEON_HOST`, `NEON_DATABASE`, `NEON_USER`, `NEON_PASSWORD` (`sync: false`). После создания сервиса можно вместо их значений добавить `NEON_CONNECTION_STRING` в Environment: полная строка будет иметь приоритет. Никогда не добавляйте URL с паролем в `render.yaml` или GitHub.
 5. `RENDER_SECRET_KEY` создаётся Render автоматически как стойкое 256-битное случайное значение. **Не удаляйте и не меняйте его при последующих деплоях** — это может сделать существующие сеансы недействительными.
 6. Примените Blueprint, откройте сервис `officeflow` → **Events / Logs**. Дождитесь сборки Docker image и строк о миграциях. После успешного запуска сервис должен стать **Live**.
 
-Альтернатива при ручном создании: Render → New → Web Service → GitHub OfficeFlow → **Language / Runtime: Docker**, **Dockerfile path: `./Dockerfile.render`**, **Instance Type: Free**, **Region: Frankfurt**, **Health Check Path: `/health/ready/`**. Добавьте `DJANGO_SETTINGS_MODULE=officeflow.settings_render`, `DEBUG=0`, `RENDER_SECRET_KEY` (сгенерированное стойкое значение минимум 40 символов), четыре `NEON_*` переменные. Docker-команда берётся из Dockerfile; Build и Start commands Python вручную не нужны.
+Альтернатива при ручном создании: Render → New → Web Service → GitHub OfficeFlow → **Language / Runtime: Docker**, **Dockerfile path: `./Dockerfile.render`**, **Instance Type: Free**, **Region: Frankfurt**, **Health Check Path: `/health/ready/`**. Добавьте `DJANGO_SETTINGS_MODULE=officeflow.settings_render`, `DEBUG=0`, `RENDER_SECRET_KEY` (сгенерированное стойкое значение минимум 40 символов), либо `NEON_CONNECTION_STRING`, либо четыре отдельные `NEON_*` переменные. Docker-команда берётся из Dockerfile; Build и Start commands Python вручную не нужны.
 
 В обоих вариантах `RENDER_EXTERNAL_HOSTNAME` автоматически содержит адрес вида `officeflow-xxxx.onrender.com`; по нему Django настраивает `ALLOWED_HOSTS` и `CSRF_TRUSTED_ORIGINS`. Собственный домен не нужен. При добавлении собственного домена в будущем потребуется добавить его явно в Render Environment → `ALLOWED_HOSTS` и `CSRF_TRUSTED_ORIGINS` (включая адрес Render, если он остаётся доступным).
 

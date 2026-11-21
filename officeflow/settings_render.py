@@ -5,6 +5,7 @@ The local Docker Compose configuration remains in officeflow.settings.
 """
 
 import os
+from urllib.parse import unquote, urlsplit
 
 # Render Free may be cold-started at any time. Never enable Django DEBUG there.
 os.environ["DEBUG"] = "0"
@@ -25,20 +26,48 @@ if hostname:
     os.environ.setdefault("ALLOWED_HOSTS", hostname)
     os.environ.setdefault("CSRF_TRUSTED_ORIGINS", "https://" + hostname)
 
-for key in ("NEON_HOST", "NEON_DATABASE", "NEON_USER", "NEON_PASSWORD"):
-    if not os.getenv(key, "").strip():
-        raise RuntimeError(f"Set {key} in the Render environment for the Neon database")
+# Copy the complete Direct connection URL from Neon when individual password
+# fields are hard to synchronize. The URL wins over stale individual NEON_* vars.
+# Never log this value: it contains the real database password.
+neon_connection_string = os.getenv("NEON_CONNECTION_STRING", "").strip()
+if neon_connection_string:
+    try:
+        connection = urlsplit(neon_connection_string)
+        neon_host = connection.hostname or ""
+        neon_user = unquote(connection.username or "")
+        neon_password = unquote(connection.password or "")
+        neon_database = unquote(connection.path.removeprefix("/"))
+        neon_port = connection.port
+    except ValueError:
+        raise RuntimeError("Invalid NEON_CONNECTION_STRING: expected a Neon PostgreSQL URL") from None
+    if (
+        connection.scheme not in ("postgresql", "postgres")
+        or not neon_host
+        or not neon_user
+        or not neon_password
+        or not neon_database
+        or connection.path.count("/") != 1
+        or neon_port not in (None, 5432)
+    ):
+        raise RuntimeError("Invalid NEON_CONNECTION_STRING: expected a Neon PostgreSQL URL")
+else:
+    for key in ("NEON_HOST", "NEON_DATABASE", "NEON_USER", "NEON_PASSWORD"):
+        if not os.getenv(key, "").strip():
+            raise RuntimeError(f"Set {key} or NEON_CONNECTION_STRING in Render")
+    neon_host = os.environ["NEON_HOST"].strip()
+    neon_database = os.environ["NEON_DATABASE"]
+    neon_user = os.environ["NEON_USER"]
+    neon_password = os.environ["NEON_PASSWORD"]
 
-neon_host = os.environ["NEON_HOST"].strip()
 if "://" in neon_host or "/" in neon_host or ":" in neon_host:
-    raise RuntimeError("NEON_HOST must contain only the direct Neon hostname")
+    raise RuntimeError("Neon host must be a direct hostname without a scheme or port")
 if "-pooler." in neon_host:
     raise RuntimeError("Use the Direct connection hostname for OfficeFlow migrations")
 
 os.environ["DB_HOST"] = neon_host
-os.environ["DB_NAME"] = os.environ["NEON_DATABASE"]
-os.environ["DB_USER"] = os.environ["NEON_USER"]
-os.environ["DB_PASSWORD"] = os.environ["NEON_PASSWORD"]
+os.environ["DB_NAME"] = neon_database
+os.environ["DB_USER"] = neon_user
+os.environ["DB_PASSWORD"] = neon_password
 os.environ["DB_PORT"] = "5432"
 os.environ["COOKIE_SECURE"] = "1"
 os.environ["SECURE_SSL_REDIRECT"] = "1"
