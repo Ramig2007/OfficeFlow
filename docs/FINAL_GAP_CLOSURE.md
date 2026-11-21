@@ -26,8 +26,9 @@
 
 | Изменение | Файл | Текущий статус |
 |---|---|---|
-| Ежедневный Neon off-site backup | .github/workflows/backup-neon-r2.yml | Workflow готов к запуску; нужны GitHub secrets/variables и приватный R2 bucket |
-| Инструкция внешних операций | docs/EXTERNAL_OPERATIONS.md | Подготовлены шаги UptimeRobot, Alertmanager webhook, Cloudflare R2 и GitHub Secrets |
+| Ежедневный Neon off-site backup | .github/workflows/backup-neon-r2.yml в `main` | Workflow готов к запуску; нужны GitHub secrets/variables и приватный R2 bucket |
+| Уведомления Alertmanager | `scripts/render_alertmanager_config.py`, `compose.yaml` | В текущей PR добавляется native Telegram receiver, CI validation и инструкция реальной доставки |
+| Инструкция внешних операций | docs/EXTERNAL_OPERATIONS.md | Подготовлены шаги UptimeRobot, Telegram Alertmanager, Cloudflare R2 и GitHub Secrets |
 | Обновление статуса проекта | README.md, docs/STATUS.md, docs/REQUIREMENTS.md, docs/PILOT.md | Синхронизируются с Live deploy и PR #20 evidence |
 | Документация Render/Neon | docs/RENDER_NEON_DEPLOYMENT.md | Фиксируется фактический Live URL и текущая конфигурация |
 | Мониторинг доступности | docs/UPTIME_MONITORING.md | Добавляется UptimeRobot как простой независимый внешний вариант |
