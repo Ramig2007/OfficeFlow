@@ -2,9 +2,21 @@
 
 ## Текущее состояние
 
-Публичный Render + Neon сервис доступен по адресу https://officeflow-x6ay.onrender.com/; пользователь подтвердил Live, вход и создание переговорных. **UptimeRobot monitor ещё должен быть создан владельцем.** Для сдачи практики целимся в 24–48 часов внешнего наблюдения; фиксируем фактическое время старта и фактически накопленную статистику. Наличие health endpoint, Prometheus, Grafana и проверок CI само по себе не подтверждает SLA.
+Публичный Render + Neon сервис доступен по адресу https://officeflow-x6ay.onrender.com/; пользователь ранее подтвердил Live, вход и создание переговорных. В репозитории добавлен внешний GitHub Actions probe: .github/workflows/uptime-monitor.yml запускается каждые 5 минут и проверяет публичный readiness endpoint. Первый run #44950272193 завершился успешно: **2026-11-21T21:11:56Z, HTTP 200, JSON status=ready, 209,06 мс**.
 
-Для быстрого старта рекомендуется UptimeRobot Free: до 50 мониторов, HTTP(s) проверки раз в 5 минут и email notifications через Alert Contacts. См. [официальный тариф](https://uptimerobot.com/pricing/) и [описание интервала](https://help.uptimerobot.com/en/articles/11360876-what-is-a-monitoring-interval-in-uptimerobot).
+Пока это одна подтверждённая проба. Для отчёта необходимо накопить фактические 24–48 часов; scheduled GitHub Actions могут задерживаться или пропускать запуск, поэтому учитывать реальные timestamps, а не предполагать ровно 288/576 проб. Ни одна короткая выборка не подтверждает месячный SLA 99,9%.
+
+В заметках предыдущей сессии зафиксирован пользовательский скриншот UptimeRobot со статусом Up и 14 ч 52 мин наблюдения, но текущая live-сессия UptimeRobot не подключена и состояние монитора повторно не проверено. UptimeRobot можно использовать дополнительно для email/push уведомлений. См. [официальный тариф](https://uptimerobot.com/pricing/) и [описание интервала](https://help.uptimerobot.com/en/articles/11360876-what-is-a-monitoring-interval-in-uptimerobot).
+
+### Репозиторный внешний probe (уже настроен)
+
+- Workflow: .github/workflows/uptime-monitor.yml.
+- Schedule: каждые 5 минут; также поддерживает workflow_dispatch.
+- Endpoint: https://officeflow-x6ay.onrender.com/health/ready/.
+- PASS: curl завершился успешно, HTTP 200 и JSON status=ready.
+- Каждый запуск хранит точный UTC timestamp, HTTP status и latency в GitHub Actions job log/summary.
+- Ссылку на историю запусков можно открыть в GitHub → Actions → OfficeFlow External Uptime Probe.
+- Для 24/48-часового отчёта считать реальные успешные/неуспешные запуски и пропущенные интервалы. Не выдавать расписание cron за гарантированную доставку каждой пробы.
 
 ### Быстрый запуск через UptimeRobot
 
