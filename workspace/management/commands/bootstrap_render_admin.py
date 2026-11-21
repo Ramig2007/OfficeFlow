@@ -1,9 +1,9 @@
-"""Create the configured Render admin from a short-lived secret.
+"""Create or repair the explicitly configured Render administrator.
 
-The bootstrap is idempotent for the configured username. Other existing
-superusers do not prevent creating this explicitly requested account.
-Remove BOOTSTRAP_ADMIN_USERNAME and BOOTSTRAP_ADMIN_PASSWORD after verifying
-the login. Existing accounts and passwords are never modified.
+The command only touches the exact username supplied through Render's
+BOOTSTRAP_ADMIN_USERNAME. While the bootstrap variables remain configured,
+its password is reset to BOOTSTRAP_ADMIN_PASSWORD on every service start.
+Remove both variables after confirming the login. Never print the password.
 """
 
 import os
@@ -14,7 +14,7 @@ from django.db import transaction
 
 
 class Command(BaseCommand):
-    help = "Create the configured Render administrator without changing existing accounts."
+    help = "Create or repair the explicitly configured Render administrator."
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -28,27 +28,22 @@ class Command(BaseCommand):
             raise CommandError("BOOTSTRAP_ADMIN_PASSWORD must contain at least 16 characters")
 
         User = get_user_model()
-        existing_user = User.objects.filter(username=username).first()
-        if existing_user is not None:
-            if existing_user.is_superuser:
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"Configured administrator '{username}' already exists; no changes made."
-                    )
-                )
-                return
-            raise CommandError(
-                f"Username '{username}' already belongs to a non-superuser; "
-                "bootstrap will not modify that account"
-            )
+        user = User.objects.filter(username=username).first()
+        created = user is None
+        if created:
+            user = User(username=username)
 
-        # Do not block this named account just because another administrator
-        # (for example, the earlier Neon admin123 account) already exists.
-        User.objects.create_superuser(
-            username=username,
-            password=password,
-            role=User.Roles.ADMIN,
-        )
+        # Supplying these Render-only secrets is an explicit instruction to
+        # provision this exact account. Repair an existing member/superuser
+        # without touching any other account or profile data.
+        user.role = User.Roles.ADMIN
+        user.is_staff = True
+        user.is_superuser = True
+        user.is_active = True
+        user.set_password(password)
+        user.save()
+
+        action = "created" if created else "updated"
         self.stdout.write(
-            self.style.SUCCESS(f"Administrator '{username}' created successfully.")
+            self.style.SUCCESS(f"Render administrator '{username}' {action} successfully.")
         )
