@@ -68,11 +68,11 @@
 
 - Prometheus: 3/3 targets UP в локальном стенде; пять alert rules прошли проверку.
 - Grafana dashboard: конфигурация подготовлена, локальный observability stack запускался.
-- Alertmanager: default receiver — `null-receiver`; реальная доставка не включена, пока владелец не выбрал и не добавил HTTPS webhook endpoint.
-- Публичный Render + Neon сервис Live; для независимых email alerts подготовлена настройка UptimeRobot на `/health/ready/`, но аккаунт, monitor и Alert Contact ещё не созданы.
+- Alertmanager: default receiver остаётся `null-receiver`, если credentials пусты; native Telegram receiver и HTTPS webhook поддерживаются генератором и проверяются в CI. Telegram bot token/chat ID и фактический test delivery ещё требуют настройки владельцем.
+- Публичный Render + Neon сервис Live; UptimeRobot monitor на `/health/ready/` ещё не создан. Для сдачи практики целевое внешнее наблюдение — 24–48 часов, с фиксацией фактического периода.
 - Backup: локальный dump и independent restore проверены CI #117.
-- Off-site: в текущей PR-ветке добавлен GitHub Actions workflow ежедневного Neon dump → полный restore в disposable PostgreSQL → Cloudflare R2 upload/download + SHA-256. Bucket, GitHub secrets/variables и первый успешный run ещё не настроены.
-- SLA 99,9%: 30-дневное внешнее измерение ещё не начато; после включения UptimeRobot нужно сохранить дату старта и дождаться полного свежего окна.
+- Off-site: GitHub Actions workflow Neon dump → полный restore в disposable PostgreSQL → Cloudflare R2 upload/download + SHA-256 находится в `main`. Bucket, GitHub secrets/variables и первый успешный run ещё не настроены.
+- SLA 99,9% не подтверждён: короткое 24–48-часовое наблюдение демонстрирует внешний контроль, но не является доказательством месячного/годового SLA.
 
 ## 6. Расширенный чек-лист опытной эксплуатации
 
