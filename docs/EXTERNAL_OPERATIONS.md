@@ -37,7 +37,7 @@ Render Free засыпает после 15 минут без входящего 
 
 ## 2. Реальный получатель уведомлений Prometheus / Alertmanager — Telegram
 
-Prometheus, Grafana и Alertmanager из `compose.yaml` входят в локальный Docker Compose observability-профиль. Они **не развёрнуты внутри Render Free** и не получают метрики публичного Render-сервиса автоматически. UptimeRobot отдельно контролирует публичный Render URL.
+Prometheus, Grafana и Alertmanager из `compose.yaml` входят в локальный Docker Compose observability-профиль. Они **не развёрнуты внутри Render Free** и не получают метрики публичного Render-сервиса автоматически. UptimeRobot отдельно контролирует публичный Render URL; по пользовательскому скриншоту монитор уже Up и накопил 14 ч 52 мин наблюдения.
 
 В репозитории настроен генератор `scripts/render_alertmanager_config.py`: он поддерживает native Telegram receiver и дополнительный HTTPS webhook. Без настроек сохраняется безопасный `null-receiver`; CI проверяет корректность Telegram-конфигурации через `amtool check-config`.
 
@@ -183,13 +183,13 @@ Endpoint и регион уже заданы в workflow: `https://storage.yande
 | Компонент | Статус |
 |---|---|
 | Render + Neon production URL | Пользователь подтвердил Live, вход и создание переговорных |
-| UptimeRobot monitor | Инструкция готова; аккаунт, email contact и первый Up ещё требуют настройки владельцем |
+| UptimeRobot monitor | Создан, HTTP(s), проверка каждые 5 минут; на пользовательском скриншоте статус Up, 14 ч 52 мин работы, 99,931% за отображаемые 24 часа, один инцидент 503 длительностью 37 секунд; среднее время ответа 165 ms |
 | Внешние email alerts | Будут включены через Alert Contacts UptimeRobot после подтверждения email |
 | Alertmanager Telegram | Native receiver поддерживается кодом и проверяется CI; bot token/chat ID и фактическое test delivery ещё требуют настройки владельцем |
 | GitHub Actions backup workflow | Добавлен; требует Neon/Yandex secrets и variables |
 | Yandex Object Storage bucket | Требует создания владельцем |
 | Первая удалённая копия | Не подтверждена до успешного workflow run |
-| Внешнее наблюдение доступности | После включения UptimeRobot собираем 24–48 часов фактических данных; короткий период не подтверждает месячный SLA 99,9% |
+| Внешнее наблюдение доступности | Наблюдение уже идёт; продолжить до фактических 24–48 часов и сохранить финальный скриншот. Короткий период не подтверждает месячный SLA 99,9% |
 
 ## 5. Безопасность
 
