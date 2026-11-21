@@ -8,8 +8,8 @@ export DJANGO_SETTINGS_MODULE=officeflow.settings_render
 python manage.py collectstatic --noinput
 python manage.py migrate --noinput
 
-# Set BOOTSTRAP_ADMIN_USERNAME/PASSWORD for the first successful deployment.
-# After verifying the admin login, remove these env variables from Render.
+# While these variables are present, create/repair the exact configured admin at startup.
+# Remove both variables from Render immediately after verifying the admin login.
 if [ -n "${BOOTSTRAP_ADMIN_USERNAME:-}" ] || [ -n "${BOOTSTRAP_ADMIN_PASSWORD:-}" ]; then
     python manage.py bootstrap_render_admin
 fi
