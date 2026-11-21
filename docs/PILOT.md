@@ -4,7 +4,7 @@
 **Объект:** OfficeFlow — онлайн-сервис бронирования переговорных комнат.  
 **Локальная среда ручной проверки:** Windows, PowerShell 5.1, Docker Desktop Linux engine, Docker Compose, `http://localhost:8080`.  
 **Облачный стенд:** Render Free + Neon Free, публичный URL `https://officeflow-x6ay.onrender.com/`; пользователь подтвердил статус Live, успешный вход и создание переговорных 21.11.2026.
-**Статус:** локальная ручная проверка 8/8; Chromium acceptance 27/27 в CI #117; PR #20 CI run #44843044175: Quality/Docker/Scale Validation Success, 92 pytest passed; Render + Neon Live подтверждены пользователем. В `main` добавлен Neon→Yandex Object Storage backup workflow; bucket/credentials, Telegram receiver и UptimeRobot monitor требуют настройки владельцем.
+**Статус:** локальная ручная проверка 8/8; Chromium acceptance 27/27 в CI #117; PR #20 CI run #44843044175: Quality/Docker/Scale Validation Success, 92 pytest passed; Render + Neon Live подтверждены пользователем. В `main` добавлен Neon→Yandex Object Storage backup workflow; bucket/credentials, Telegram receiver требует настройки владельцем; UptimeRobot monitor создан и уже показывает Up.
 
 ## 1. Паспорт проверенной среды
 
