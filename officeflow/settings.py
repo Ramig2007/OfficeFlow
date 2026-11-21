@@ -127,8 +127,15 @@ if not DEBUG:
     if len(SECRET_KEY) < 50 or SECRET_KEY.startswith(("REPLACE_", "CHANGE_")):
         raise RuntimeError("Production SECRET_KEY must be a unique random value of at least 50 characters")
     database_password = os.getenv("DB_PASSWORD", "")
-    if len(database_password) < 24 or database_password.startswith(("REPLACE_", "CHANGE_")):
-        raise RuntimeError("Production DB_PASSWORD must be a unique random value of at least 24 characters")
+    # Neon generates high-entropy database passwords that can be shorter than
+    # the 24-character policy used by our self-hosted Compose deployment.
+    # Keep the exception scoped to the dedicated Render/Neon settings module.
+    neon_render = os.getenv("DJANGO_SETTINGS_MODULE") == "officeflow.settings_render"
+    minimum_db_password_length = 12 if neon_render else 24
+    if len(database_password) < minimum_db_password_length or database_password.startswith(("REPLACE_", "CHANGE_")):
+        raise RuntimeError(
+            f"Production DB_PASSWORD must be a unique random value of at least {minimum_db_password_length} characters"
+        )
     if not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS:
         raise RuntimeError("Set explicit production ALLOWED_HOSTS; wildcard hosts are forbidden")
     if all(host in {"localhost", "127.0.0.1", "app", "proxy"} for host in ALLOWED_HOSTS):
