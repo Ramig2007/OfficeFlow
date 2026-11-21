@@ -76,7 +76,7 @@
 | 5.4 | Алерты по SLA | 5 Prometheus rules; renderer поддерживает native Telegram receiver и HTTPS webhook; UptimeRobot контролирует публичный Render независимо | Код конфигурации и CI validation готовы; нужны Telegram bot token/chat ID и UptimeRobot account/email contact, затем фактический test alert и сообщение |
 | 5.5 | Grafana dashboard | `infra/grafana/dashboards/officeflow.json` | Конфигурация готова; запуск Prometheus/Grafana проверен в локальном observability-стенде |
 | 5.6 | 100–200 RPS стресс-тест | `scale-validation.yml`: 5-минутный mixed read/write тест с постоянной интенсивностью 100 HTTP RPS и отдельный 5-минутный authenticated read-only тест 200 RPS | Новый CI-прогон ожидает подтверждения; результаты будут внесены по фактическим k6 summary, без переноса метрик CI на Render production |
-| 5.7 | Деградация БД и анализ | PR CI #93: PostgreSQL stop→readiness 503→start→readiness 200; аналогично Redis | Автоматический сценарий прошёл; HA/failover БД не доказан |
+| 5.7 | Деградация БД и анализ | PR CI #93: PostgreSQL stop→readiness 503→start→readiness 200; аналогично Redis; архитектура managed Neon и границы provider-managed failover описаны в `CAPACITY.md` | Локальная деградация проверена; принудительный отказ compute Neon и RTO/RPO не тестировались |
 
 ## 6. Методики тестирования
 
