@@ -2,24 +2,24 @@
 
 **OfficeFlow** — учебное веб-приложение для бронирования переговорных, построенное вокруг недельного расписания. Отдельный проект, не основанный на MeetingRoomBooking. Язык интерфейса: русский. Стек: Django 5.2 LTS, PostgreSQL, Redis, Django REST Framework, Nginx, Caddy (production TLS), Docker Compose, Prometheus, Grafana.
 
-> **Статус на 21.11.2026:** PR #19 объединён в `main` (commit `5d27402`). **CI #128: quality/docker Success, 77 pytest passed**, покрытие двух критических модулей 91,67%, Render Docker image собран, production-настройки проверены, Chromium 27/27 и independent PostgreSQL restore успешно повторены. Подготовлен бесплатный деплой **Render Free + Neon Free**: `render.yaml`, `Dockerfile.render`, отдельная конфигурация Django с TLS, WhiteNoise, bootstrap admin и инструкцией `docs/RENDER_NEON_DEPLOYMENT.md`. **Реальный Render/Neon-сервис ещё не создан и не проверен**, SLA 99,9% не подтверждён. Ранее CI #106: 1000 независимых синтетических сессий, 3750 create/edit/cancel циклов (11 250 успешных записей), p95 10,40 мс, 0 HTTP-ошибок. GHCR остаётся Private. В ветке `scale-validation/final-gap-closure` добавлены mixed 100 HTTP RPS k6 workload, тесты webhook renderer/off-site backup и S3 backup automation; результаты текущего PR CI ещё ожидаются.
+> **Актуальное состояние на 21.11.2026:** публичный исходный репозиторий `Ramig2007/OfficeFlow`; PR #20 (смешанная нагрузка и эксплуатационные инструменты), PR #33–#35 (Neon TLS/connection string fixes) объединены в `main`. Render Free + Neon Free развёрнуты: https://officeflow-x6ay.onrender.com/ . Пользователь подтвердил Render **Live**, успешный вход и создание переговорных. Main CI после последних исправлений: Quality + Docker — Success; PR #20 CI run #44843044175: Quality, Docker и Scale Validation — Success, 92 pytest passed, coverage 91,67%. **Длительное SLA 99,9% пока не подтверждено**: независимый монитор ещё не включён и 30-дневное окно не накоплено. GHCR package остаётся Private. В текущей PR-ветке подготовлены документация внешней эксплуатации и GitHub Actions workflow ежедневного Neon backup в Cloudflare R2; реальные R2 credentials и первый backup требуют настройки владельцем.
 
 ## Подтверждённые результаты испытаний — по 21.11.2026
 
 | Проверка | Фактический результат | Ограничение |
 |---|---|---|
-| Django / pytest | **77 passed** в PR CI #128 | Покрытие в CI измеряется только для `workspace.services` и `workspace.queries` |
+| Django / pytest | **92 passed** в PR #20 CI run #44843044175 | Покрытие измеряется только для `workspace.services` и `workspace.queries` |
 | Покрытие критических модулей | 91,67% в CI (требование ≥70%) | Не равно покрытию всей системы |
 | Playwright E2E | **27/27** в CI #117, включая бронирования, VIP, роли, регистрацию, logout, CSV и 375/768 px | Изолированная CI-база, не заменяет независимую ручную приёмку |
 | k6, авторизованное чтение | 200 целевых RPS, ~199,2 HTTP RPS, p95 13,19 мс, 0% HTTP-ошибок | GET с одной сессией; не 1000 пользователей |
-| k6, создание/изменение/отмена | **3750** полных циклов, **11 250** успешных записей, **18 750/18 750** проверок, p95 **10,40 мс** и 0 ошибок/пропусков | CI #106, 4 минуты, ступень до 20 циклов/с (≈60 write RPS), до 40 активных VU | 
-| k6, 1000 пользователей | **1000/1000** успешных логинов, пик **1000 VU**, 41 299 HTTP запросов, 0 HTTP ошибок, p95 **6,91 мс** | CI #106, ramp-up/3 мин удержания; не 1000 HTTP-запросов одновременно и не тест production VPS |
-| PostgreSQL backup/restore | **INDEPENDENT_RESTORE_OK**, SHA-256, counts и GiST constraint в отдельном контейнере PostgreSQL, CI #117 | Тот же Docker-хост, off-host копии нет |
-| Prometheus / Alertmanager | 3/3 цели `UP`, 5/5 правил проверены; CI валидирует null-receiver и необязательный HTTPS webhook | Реальная доставка требует настроенного адреса получателя |
-| GitHub Actions | CI #106 (нагрузка), #117 (Chromium и DR), #128 (Render Docker/settings) — Success | CI не является доказательством реального размещения на Render/Neon или SLA |
+| k6, создание/изменение/отмена | **3749** полных циклов (11 247 операций записи), 18 745/18 745 checks, p95 **14,47 мс**, 0 HTTP-ошибок и 0 dropped iterations | PR #20 CI run #44843044175; ступень до 20 циклов/с, до 44 активных VU | 
+| k6, 1000 пользователей | **1000/1000** независимых авторизаций, пик **1000 VU**, 41 294 HTTP-запроса, 0 HTTP-ошибок, p95 **9,50 мс** | PR #20 CI run #44843044175; тестовый GitHub runner, не Render production |
+| PostgreSQL backup/restore | **INDEPENDENT_RESTORE_OK** в CI #117; новый workflow дополнительно выполняет полный restore Neon dump в отдельный PostgreSQL 17 и remote SHA-256 check перед загрузкой в R2 | Реальный R2 bucket, GitHub secrets и первый успешный workflow run ещё не настроены |
+| Prometheus / Alertmanager | Локально 3/3 targets UP и 5 правил проверены; HTTPS webhook renderer есть | Реальный Alertmanager recipient не задан; внешние email-уведомления публичного Render будут настраиваться через UptimeRobot |
+| GitHub Actions | PR #20 run #44843044175: Quality, Docker и Scale Validation — Success; main run #44853052929: Quality + Docker — Success | CI подтверждает проверенный код и сценарии runner, но не SLA публичного Render |
 | GHCR | `ghcr.io/ramig2007/officeflow:latest` опубликован | Пакет **Private**; публичные исходники можно собрать самостоятельно |
 
-Подробности и ограничения: [`docs/STATUS.md`](docs/STATUS.md), [`docs/FINAL_GAP_CLOSURE.md`](docs/FINAL_GAP_CLOSURE.md), [`docs/OFFSITE_BACKUP.md`](docs/OFFSITE_BACKUP.md).
+Подробности: [`docs/STATUS.md`](docs/STATUS.md), [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md), [`docs/EXTERNAL_OPERATIONS.md`](docs/EXTERNAL_OPERATIONS.md), [`docs/UPTIME_MONITORING.md`](docs/UPTIME_MONITORING.md).
 
 ## Возможности
 
@@ -124,7 +124,7 @@ docker compose down
 
 **Пошаговая инструкция:** [docs/RENDER_NEON_DEPLOYMENT.md](docs/RENDER_NEON_DEPLOYMENT.md).
 Секреты Neon вводить только в Render Environment, никогда не в GitHub или чат.
-Реальный облачный запуск и миграции должны быть проверены отдельно.
+Фактический сервис создан: https://officeflow-x6ay.onrender.com/ . Пользователь подтвердил Live, успешный вход и создание переговорных; полный внешний smoke всех сценариев и длительная доступность фиксируются отдельно.
 На Render Free сервис может засыпать после 15 минут простоя,
 поэтому этот вариант **не подтверждает SLA 99,9%** и не наследует
 показатели теста 1000 VU на CI runner.
@@ -183,7 +183,7 @@ docker compose --profile observability up -d --build
 - Prometheus: http://localhost:9090
 - Alertmanager: http://localhost:9093
 - Метрики приложения доступны **только внутри Docker** по `app:8000/metrics`, внешний Nginx блокирует `/metrics`.
-- В демонстрационном Alertmanager приёмник `null-receiver` — **уведомления не отправляются** до конфигурации реального получателя.
+- В локальном Alertmanager приёмник по умолчанию `null-receiver`; для публичного Render внешние уведомления о доступности настраиваются через независимый UptimeRobot. Инструкция: `docs/EXTERNAL_OPERATIONS.md`.
 
 ## Резервное копирование
 
@@ -193,7 +193,7 @@ docker compose --profile observability up -d --build
 .\scripts\restore.ps1 -BackupFile .\backups\officeflow-YYYYMMDD-HHmmss.dump
 ```
 
-Восстановление требует подтверждения и заменяет содержимое базы. Папка `backups/` добавлена в `.gitignore`; копии нужно хранить отдельно от сервера, шифровать и периодически проверять восстановление. Дополнительно в Linux/Docker CI #117 проверен `bash scripts/test-restore-independent.sh backups/<имя>.dump`: он поднимает отдельный временный PostgreSQL-контейнер, не изменяет основную базу и требует SHA-256, Docker и OpenSSL. См. `docs/BACKUP_VALIDATION.md`.
+Восстановление требует подтверждения и заменяет содержимое базы. Папка `backups/` добавлена в `.gitignore`; копии нужно хранить отдельно от сервера, шифровать и периодически проверять восстановление. Для фактической Render + Neon базы добавлен ежедневный GitHub Actions workflow `.github/workflows/backup-neon-r2.yml`; для запуска нужны Neon/R2 secrets и приватный Cloudflare R2 bucket. См. `docs/EXTERNAL_OPERATIONS.md`. Дополнительно в Linux/Docker CI #117 проверен `bash scripts/test-restore-independent.sh backups/<имя>.dump`: он поднимает отдельный временный PostgreSQL-контейнер, не изменяет основную базу и требует SHA-256, Docker и OpenSSL. См. `docs/BACKUP_VALIDATION.md`.
 
 ## Структура
 
@@ -228,8 +228,9 @@ docs/                       матрица ИСП49, архитектура, э�
 13. `docs/SCALE_VALIDATION.md` — методика испытания 1000 независимых сессий и нагрузки на создание/редактирование/отмену.
 14. `docs/UPTIME_MONITORING.md` — внешний минутный мониторинг и расчёт доступности 99,9%.
 15. `docs/SCALE_RESULTS_2026-11-21.md` — фактические результаты 1000 VU, 3750 полных циклов бронирования, показатели CPU/RAM и журнал CI #106.
-16. `docs/RENDER_NEON_DEPLOYMENT.md` — альтернативный бесплатный деплой на Render Free + Neon Free, без VPS.
+16. `docs/RENDER_NEON_DEPLOYMENT.md` — бесплатный Render Free + Neon Free; фактический публичный сервис Live.
+17. `docs/EXTERNAL_OPERATIONS.md` — UptimeRobot, внешние уведомления и ежедневные Neon backups в Cloudflare R2.
 
 ### Оговорки для защиты
 
-Исходный код опубликован в публичном GitHub-репозитории `Ramig2007/OfficeFlow`; GHCR package остаётся приватным. GitHub Actions и публикация Docker-образа в GHCR проверены. Документированные результаты покрытия и кратковременного нагрузочного теста можно приводить **с указанием сценариев и ограничений**. Тест 1000 независимых синтетических пользователей в CI пройден, но не доказана промышленная эксплуатация при 1000 реальных пользователей. Не заявляйте доказанное SLA 99,9% или промышленную готовность. По заданию преподавателя раздел об опытной эксплуатации считается завершённым только после документированного пилота и работы с дефектами.
+Исходный код опубликован в публичном GitHub-репозитории `Ramig2007/OfficeFlow`; GHCR package остаётся приватным. Публичный Render + Neon сервис подтверждён пользователем как Live. PR #20 CI подтвердил 1000 синтетических сессий, write workload и смешанный профиль; фактическая средняя интенсивность смешанного теста составила 85,03 HTTP RPS при пиковой конфигурации 100 RPS, поэтому не заявляйте устойчивые 100 RPS. Не заявляйте доказанное SLA 99,9% до завершения внешнего 30-дневного измерения. Off-site backup не считается настроенным до первого успешного R2 workflow run.
