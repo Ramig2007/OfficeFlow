@@ -126,14 +126,14 @@ jobs:
           read_100_status=${PIPESTATUS[0]}
 
           printf 'capacity_exit_code=%s\nwrite_edit_exit_code=%s\nmixed_100_rps_exit_code=%s\nauthenticated_read_100_rps_exit_code=%s\n' \
-            "$capacity_status" "$write_status" "$mixed_status" "$read_200_status" \
+            "$capacity_status" "$write_status" "$mixed_status" "$read_100_status" \
             > "$RUNNER_TEMP/officeflow-scale-results/exit-codes.txt"
 
           kill "$stats_pid" 2>/dev/null || true
           wait "$stats_pid" 2>/dev/null || true
 
           set -e
-          if [[ "$capacity_status" -ne 0 || "$write_status" -ne 0 || "$mixed_status" -ne 0 || "$read_200_status" -ne 0 ]]; then
+          if [[ "$capacity_status" -ne 0 || "$write_status" -ne 0 || "$mixed_status" -ne 0 || "$read_100_status" -ne 0 ]]; then
             echo "One or more scale tests did not meet their k6 thresholds."
             exit 1
           fi

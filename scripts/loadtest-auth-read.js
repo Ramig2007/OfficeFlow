@@ -48,7 +48,7 @@ export function setup() {
   if (page.status !== 200) {
     fail(`Login page is not available: HTTP ${page.status}`);
   }
-  const match = page.body.match(/name=["']csrfmiddlewaretoken["']\\s+value=["']([^"']+)["']/);
+  const match = page.body.match(/name=["']csrfmiddlewaretoken["']\s+value=["']([^"']+)["']/);
   if (!match) {
     fail('Could not find csrfmiddlewaretoken on login page.');
   }
