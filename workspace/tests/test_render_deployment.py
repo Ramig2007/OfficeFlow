@@ -109,6 +109,7 @@ def test_standard_production_keeps_24_character_database_password_policy():
     env = render_env()
     env.update({
         "DJANGO_SETTINGS_MODULE": "officeflow.settings",
+        "DEBUG": "0",
         "SECRET_KEY": "S" * 60,
         "ALLOWED_HOSTS": "example.com",
         "CSRF_TRUSTED_ORIGINS": "https://example.com",
