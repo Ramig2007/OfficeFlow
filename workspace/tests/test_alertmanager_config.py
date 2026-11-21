@@ -61,7 +61,7 @@ def test_telegram_chat_id_must_not_be_zero():
 
 def test_telegram_token_rejects_control_characters():
     with pytest.raises(ValueError, match="must not contain whitespace"):
-        render_config("", "", "123456:token\\nforged", "123456789")
+        render_config("", "", "123456:token\nforged", "123456789")
 
 
 @pytest.mark.parametrize(
@@ -71,7 +71,7 @@ def test_telegram_token_rejects_control_characters():
         "https://user:password@hooks.example.test/officeflow",
         "https://hooks.example.test/officeflow#fragment",
         "https://hooks.example.test:invalid/officeflow",
-        "https://hooks.example.test/officeflow\\nroute: injected",
+        "https://hooks.example.test/officeflow\nroute: injected",
     ],
 )
 def test_webhook_rejects_insecure_or_malformed_urls(url):
@@ -86,4 +86,4 @@ def test_bearer_token_requires_a_webhook_url():
 
 def test_bearer_token_rejects_line_breaks():
     with pytest.raises(ValueError, match="must not contain line breaks"):
-        render_config("https://hooks.example.test/officeflow", "token\\nforged")
+        render_config("https://hooks.example.test/officeflow", "token\nforged")
