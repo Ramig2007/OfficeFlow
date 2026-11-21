@@ -27,7 +27,7 @@
 | 1.2 | IDE + линтер + форматер | `.vscode/`, `pyproject.toml`, Ruff | конфигурация |
 | 1.3 | Репозиторий Git | публичный `Ramig2007/OfficeFlow`, README и `.gitignore` | Проверено в GitHub |
 | 1.4 | Окружение с app, БД, Redis | `compose.yaml`, `Dockerfile`; локальный стек работал, app healthy | Проверено локально |
-| 1.5 | CI: сборка, тесты, стиль | `.github/workflows/ci.yml` и `scale-validation.yml`; PR CI #106/#117 | Quality + Docker + Scale Validation Success; 68 pytest, Chromium 27/27, independent PostgreSQL recovery |
+| 1.5 | CI: сборка, тесты, стиль | `.github/workflows/ci.yml`, `scale-validation.yml`; PR #20 CI run #44843044175 | Quality + Docker + Scale Validation Success; 92 pytest, 91,67% coverage, Chromium 27/27 в отдельном CI #117 |
 | 1.6 | Доступный Docker-образ | `ghcr.io/ramig2007/officeflow:latest` опубликован | Пакет Private; публичная доступность не подтверждена |
 
 ## 2. Разработка программного кода
