@@ -124,7 +124,7 @@ docker compose down
 и Caddy в этом варианте не требуются; локальный Docker Compose не затронут.
 
 **Пошаговая инструкция:** [docs/RENDER_NEON_DEPLOYMENT.md](docs/RENDER_NEON_DEPLOYMENT.md).
-Секреты Neon вводить только в Render Environment, никогда не в GitHub или чат.
+Runtime-секрет Neon хранится в Render Environment. Для отдельного backup workflow direct connection string дополнительно хранится только в GitHub Actions Secret NEON_CONNECTION_STRING; не помещайте секреты в отслеживаемые файлы, issue, PR или чат.
 Фактический сервис создан: https://officeflow-x6ay.onrender.com/ . Пользователь подтвердил Live, успешный вход и создание переговорных; полный внешний smoke всех сценариев и длительная доступность фиксируются отдельно.
 На Render Free сервис может засыпать после 15 минут простоя,
 поэтому этот вариант **не подтверждает SLA 99,9%** и не наследует
