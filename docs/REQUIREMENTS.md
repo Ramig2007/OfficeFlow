@@ -50,7 +50,7 @@
 |---|---|---|---|
 | 3.1 | Таблица компонент/назначение/обоснование | `CAPACITY.md` | документация |
 | 3.2 | CPU/RAM/диск на 1000 пользователей, 100 RPS | формульная оценка `CAPACITY.md` | оценка, не измерение |
-| 3.3 | Отказоустойчивость, репликация | топология и ограничения в `CAPACITY.md` | проектная рекомендация |
+| 3.3 | Отказоустойчивость, репликация | Архитектурное обоснование managed Neon в `CAPACITY.md`: stateless compute, отказоустойчивый storage и provider-managed compute recovery; read replica не является независимым standby | Собственная streaming replication/Patroni не внедряется для выбранной Neon Free-схемы; приложение использует постоянный Neon endpoint. Провайдерский механизм не подвергался нашему failover-тесту, RTO/RPO не измерены |
 | 3.4 | Backup/restore | CI #117 independent restore; GitHub Actions workflow `.github/workflows/backup-neon-r2.yml` для ежедневного Neon dump, полного restore test и загрузки в Cloudflare R2 | Workflow добавлен в PR-ветку; R2 bucket/secrets и первый успешный off-site backup ещё не настроены |
 | 3.5 | Healthcheck | `/health/live/`, `/health/ready/`, Compose checks; app healthy локально | Проверено локально |
 | 3.6 | Бенчмарки и обоснования | `CAPACITY.md`, k6 baseline и `SCALE_RESULTS_2026-11-21.md` | 1000 синтетических сессий и 3749 create/edit/cancel циклов подтверждены PR #20 CI; смешанный профиль — 85,03 RPS в среднем при пике 100 RPS; production не измерен |
