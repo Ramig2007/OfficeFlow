@@ -2,7 +2,7 @@
 
 **Актуализация:** 21 ноября 2026 г.  
 **Основная ветка:** main; PR #20 и PR #33–#35 объединены.  
-**Текущая PR-ветка:** ops/docs-external-monitoring-backup.  
+**Текущая PR-ветка:** scale-validation/final-ops-2026-11-21.  
 **Публичный сервис:** https://officeflow-x6ay.onrender.com/ (Render Free + Neon Free). Пользователь подтвердил Live, вход и создание переговорных.
 
 Документ отделяет подтверждённые результаты от действий, которые требуют внешних аккаунтов, секретов, независимого проверяющего или времени наблюдения.
@@ -18,7 +18,7 @@
 | Mixed workload | 15 466 HTTP-запросов за 3 минуты, средняя фактическая скорость **85,03 RPS**, p95 **17,82 мс**, 0 ошибок, 0 dropped iterations | Профиль был настроен на пик 100 RPS; устойчивые 100 RPS не подтверждены |
 | Render + Neon | Пользователь подтвердил публичный Render service **Live**, вход и создание комнат | Полный внешний smoke всех сценариев ещё не оформлен; Render Free не даёт SLA |
 | Prometheus / Grafana | Локальные 3/3 targets UP, пять alert rules; Grafana dashboard | Локальный observability stack не развёрнут на Render |
-| Backup / restore | Independent PostgreSQL restore подтверждён CI #117 | Off-site backup в R2 ещё не запущен |
+| Backup / restore | Independent PostgreSQL restore подтверждён CI #117 | Off-site backup в Yandex Object Storage ещё не запущен |
 
 Источники CI: [PR #20 run #44843044175](https://github.com/Ramig2007/OfficeFlow/actions/runs/44843044175), [PR #18 run #44829732693](https://github.com/Ramig2007/OfficeFlow/actions/runs/44829732693), [последний main run #44853052929](https://github.com/Ramig2007/OfficeFlow/actions/runs/44853052929).
 
@@ -26,19 +26,20 @@
 
 | Изменение | Файл | Текущий статус |
 |---|---|---|
-| Ежедневный Neon off-site backup | .github/workflows/backup-neon-r2.yml | Workflow готов к запуску; нужны GitHub secrets/variables и приватный R2 bucket |
-| Инструкция внешних операций | docs/EXTERNAL_OPERATIONS.md | Подготовлены шаги UptimeRobot, Alertmanager webhook, Cloudflare R2 и GitHub Secrets |
+| Ежедневный Neon off-site backup | .github/workflows/backup-neon-yandex.yml в PR #37 | Workflow готов к запуску; нужны GitHub secrets/variables и приватный Yandex Object Storage bucket |
+| Уведомления Alertmanager | `scripts/render_alertmanager_config.py`, `compose.yaml` | В текущей PR добавляется native Telegram receiver, CI validation и инструкция реальной доставки |
+| Инструкция внешних операций | docs/EXTERNAL_OPERATIONS.md | Подготовлены шаги UptimeRobot, Telegram Alertmanager, Yandex Object Storage и GitHub Secrets |
 | Обновление статуса проекта | README.md, docs/STATUS.md, docs/REQUIREMENTS.md, docs/PILOT.md | Синхронизируются с Live deploy и PR #20 evidence |
 | Документация Render/Neon | docs/RENDER_NEON_DEPLOYMENT.md | Фиксируется фактический Live URL и текущая конфигурация |
 | Мониторинг доступности | docs/UPTIME_MONITORING.md | Добавляется UptimeRobot как простой независимый внешний вариант |
 
-### Как устроен Neon → Cloudflare R2 workflow
+### Как устроен Neon → Yandex Object Storage workflow
 
 1. По расписанию ежедневно в 02:15 UTC или вручную запускается GitHub Actions.
 2. pg_dump получает custom-format dump из Neon direct connection.
 3. pg_restore --list проверяет архив.
 4. Полный restore выполняется в отдельный временный PostgreSQL 17 container.
-5. Dump и SHA-256 загружаются в приватный R2 bucket.
+5. Dump и SHA-256 загружаются в приватный Yandex Object Storage bucket.
 6. Workflow скачивает оба объекта обратно и проверяет checksum.
 7. Успешный run должен показать RESTORE_TEST_OK и OFFSITE_BACKUP_OK.
 
@@ -48,31 +49,31 @@ Workflow безопасно пропускает работу, если secrets/
 
 | Приоритет | Задача | Что сделать | Доказательство закрытия |
 |---|---|---|---|
-| P1 | Cloudflare R2 | Создать private bucket и S3 token Object Read & Write только для bucket | Bucket создан, доступ ограничен |
-| P1 | GitHub backup secrets | Добавить NEON_CONNECTION_STRING, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY как Secrets; R2_ACCOUNT_ID, R2_BUCKET как Variables | Ручной workflow run завершился с RESTORE_TEST_OK и OFFSITE_BACKUP_OK |
-| P1 | UptimeRobot | Создать HTTP(s) monitor для https://officeflow-x6ay.onrender.com/health/ready/ с 5-минутным интервалом и подтвердить email Alert Contact | Monitor Up; дата начала измерения зафиксирована |
-| P1 | Alertmanager recipient | Выбрать совместимый HTTPS webhook и задать URL/token в локальном секретном .env | Test alert фактически доставлен |
-| P1 | 30-дневное измерение | Не прерывать внешний мониторинг минимум 30 дней | Свежий отчёт за 30 дней с uptime, инцидентами и оценкой простоя |
+| P1 | Yandex Object Storage | Создать private bucket и S3 token Object Read & Write только для bucket | Bucket создан, доступ ограничен |
+| P1 | GitHub backup secrets | Добавить NEON_CONNECTION_STRING, YC_ACCESS_KEY_ID, YC_SECRET_ACCESS_KEY как Secrets; YC_BUCKET и (необязательно) YC_PREFIX как Variables | Ручной workflow run завершился с RESTORE_TEST_OK и OFFSITE_BACKUP_OK |
+| P1 | UptimeRobot | Уже создан HTTP(s) monitor на readiness endpoint с интервалом 5 минут | Monitor Up; на скриншоте 14 ч 52 мин наблюдения, 99,931% за отображаемые 24 часа и один 37-секундный инцидент 503 |
+| P1 | Alertmanager recipient | Создать Telegram bot, добавить bot token и chat ID в локальный секретный `.env`, запустить observability profile | Контрольное сообщение фактически доставлено в Telegram |
+| P1 | Краткосрочное внешнее наблюдение | Продолжить уже запущенный UptimeRobot до 24–48 часов | Скриншоты статуса, uptime, фактического периода, проверок и инцидентов |
 | P1 | Word-отчёт | Сделать реальные скриншоты публичного интерфейса и обновить отчёт | Рисунки и ссылки в тексте совпадают |
 | P1 | Независимая приёмка | Попросить наставника/одногруппника пройти сценарии | Дата, роль, результаты и подпись/согласование, если требуется |
 | P2 | PostgreSQL HA | Выделенная репликация и failover drill | Измеренные RTO/RPO и успешное переключение |
 
 ## Что нельзя заявлять до получения доказательств
 
-- SLA 99,9% — пока нет полного свежего 30-дневного внешнего измерения. Для 30 дней бюджет простоя при 99,9% составляет **43 минуты 12 секунд**.
-- Off-site backup — пока нет первого успешного workflow run и объекта в отдельном R2 bucket.
-- Внешние уведомления Alertmanager — пока не получено реальное сообщение от test alert.
-- Устойчивые 100 HTTP RPS — mixed CI profile был настроен на пик 100 RPS, но фактическая средняя скорость составила 85,03 RPS.
+- SLA 99,9% — не подтверждён. До сдачи практики собирается только 24–48 часов внешнего наблюдения; это демонстрация мониторинга, а не доказательство месячного/годового SLA.
+- Off-site backup — пока нет первого успешного workflow run и объекта в отдельном Yandex Object Storage bucket.
+- Внешние уведомления Alertmanager — renderer и CI validation подготовлены, но Telegram token/chat ID и реальная доставка test alert ещё не подтверждены.
+- Устойчивые 100–200 HTTP RPS — предыдущий mixed CI profile достиг в среднем 85,03 RPS; новая проверка с постоянным 100 RPS mixed и 200 RPS authenticated read ожидает CI результата.
 - Производительность на 1000 реальных пользователей — 1000 VU были синтетическими и тестировались на GitHub runner.
-- Автоматический PostgreSQL HA/failover — одна Neon база без отдельной реплики не доказывает HA.
+- Собственная PostgreSQL streaming replication/failover не реализована. Для выбранного managed Neon это обосновано его stateless compute recovery и отказоустойчивым storage; read replicas Neon — read-only compute, не независимый standby. Наш failover drill и RTO/RPO не измерялись; см. `CAPACITY.md`.
 
 ## Рекомендуемый порядок завершения
 
 1. Объединить текущую PR-ветку после успешного CI.
-2. Создать R2 bucket и добавить GitHub Actions secrets/variables.
+2. Создать приватный Yandex Object Storage bucket, service account и S3 static access key; добавить GitHub Actions secrets/variables.
 3. Запустить backup workflow вручную и проверить оба маркера успеха.
-4. Создать UptimeRobot monitor и зафиксировать дату начала.
+4. UptimeRobot уже создан и Up; продолжить наблюдение до 24–48 часов и сохранить скриншот с итоговыми показателями.
 5. Выбрать канал для Alertmanager и проверить test alert.
-6. Через 30 дней сохранить uptime report, затем обновить Word-отчёт и завершить формальную приёмку.
+6. Перед сдачей практики сохранить фактический UptimeRobot report и скриншоты за накопленные 24–48 часов; указать точные даты и не заявлять месячный SLA.
 
 **Итог:** OfficeFlow уже развёрнут публично и подтверждён пользователем как работающий учебный стенд. Внешний backup, внешние уведомления и длительный SLA не считаются завершёнными до настройки внешних сервисов и получения фактических результатов.

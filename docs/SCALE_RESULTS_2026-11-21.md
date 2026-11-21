@@ -65,3 +65,19 @@ Docker CPU может превышать 100%, если использовано
 - Для повышения уверенности в промышленной эксплуатации нужны внешний хостинг, сетевой TLS smoke, off-host backup, реальные уведомления, длительный мониторинг, пользовательская приёмка.
 
 **Вывод:** два запрошенных масштабных испытания завершились успешно и имеют проверяемые GitHub CI артефакты. Подготовлен механизм измерения доступности, но подтверждать SLA 99,9% без непрерывных внешних измерений нельзя.
+
+
+## 6. PR #37 — дополнительный длительный прогон (21.11.2026)
+
+Источник: [GitHub Actions run #449392](https://github.com/Ramig2007/OfficeFlow/actions/runs/44939237867), artifact `officeflow-scale-validation` (ID 14721991969). Проверенный commit: `232a2b95cfd6c52577ed93166eb0c29ac7b12d82`.
+
+| Профиль | Фактический результат | Итог |
+|---|---|---|
+| 1000 независимых пользователей | 1000 VU, 41 291 HTTP requests, 0 HTTP errors, 100% checks, avg 10,21 мс, p95 8,81 мс | PASS |
+| Create/edit/cancel | 3 750 полных циклов каждого типа, 11 350 HTTP requests, 0 HTTP errors, 0 dropped iterations, p95 13,26 мс | PASS |
+| Mixed target 100 RPS | 33 686 HTTP requests, 93,08 RPS average over the whole window including ramp-up; p95 27,19 мс, p99 77,04 мс, 0 HTTP errors, 0 dropped iterations | PASS |
+| Authenticated read stress 150 RPS | 33 264 requests, фактически 109,25 RPS, 0 HTTP errors, checks 100%, но 11 739 dropped iterations; avg 3,13 с, p95 5,13 с, p99 6,04 с | FAIL — дополнительный стресс-профиль |
+
+Во время 150 RPS профиля максимальные наблюдавшиеся значения Docker CPU: app **386,23%**, PostgreSQL **30,15%**, Redis **5,42%**, proxy **5,03%**. Это указывает на насыщение CPU Django/Gunicorn в данном CI runner; показатели не являются замером публичного Render.
+
+**Интерпретация:** обязательный смешанный профиль с целевыми 100 RPS прошёл. Дополнительный read-only тест 150 RPS не прошёл, поэтому его нельзя выдавать за подтверждённую производительность. В следующем CI прогоне read-only acceptance выровнен по целевым 100 RPS, а пороги ужесточены до p95 <200 мс / p99 <500 мс; добавлены отдельные latency Trends для трёх HTML-маршрутов.

@@ -1,27 +1,41 @@
 // OfficeFlow: read-only authenticated workload for Django + PostgreSQL.
 // Does NOT create, edit, approve or cancel bookings.
+// The 100 RPS acceptance profile matches the stated project target; route-level
+// Trends make a slow HTML page visible instead of hiding it in the aggregate.
 import http from 'k6/http';
 import { check, fail } from 'k6';
+import { Trend } from 'k6/metrics';
 
 const baseURL = (__ENV.BASE_URL || 'http://proxy').replace(/\/+$/, '');
 const username = __ENV.K6_USERNAME || '';
 const password = __ENV.K6_PASSWORD || '';
 
+const routeDurations = {
+  '/rooms/': new Trend('rooms_page_duration', true),
+  '/schedule/': new Trend('schedule_page_duration', true),
+  '/my-bookings/': new Trend('my_bookings_page_duration', true),
+};
+
 export const options = {
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
   scenarios: {
     read_pages: {
       executor: 'constant-arrival-rate',
-      rate: Number(__ENV.TARGET_RPS || 20),
+      rate: Number(__ENV.TARGET_RPS || 100),
       timeUnit: '1s',
       duration: __ENV.DURATION || '15s',
-      preAllocatedVUs: 40,
-      maxVUs: 200,
+      preAllocatedVUs: 120,
+      maxVUs: 250,
     },
   },
   thresholds: {
-    http_req_duration: ['p(95)<200'],
+    http_req_duration: ['p(95)<200', 'p(99)<500'],
+    rooms_page_duration: ['p(95)<200', 'p(99)<500'],
+    schedule_page_duration: ['p(95)<200', 'p(99)<500'],
+    my_bookings_page_duration: ['p(95)<200', 'p(99)<500'],
     http_req_failed: ['rate<0.001'],
     checks: ['rate>0.999'],
+    dropped_iterations: ['count==0'],
   },
 };
 
@@ -71,6 +85,7 @@ export default function (state) {
     headers: { Cookie: `sessionid=${state.sessionID}` },
     tags: { route: path, phase: 'workload' },
   });
+  routeDurations[path].add(response.timings.duration);
   check(response, {
     'Authenticated HTML 200': (r) => r.status === 200,
   });

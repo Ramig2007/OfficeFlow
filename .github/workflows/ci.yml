@@ -134,6 +134,16 @@ jobs:
             -v "$config_dir:/etc/alertmanager:ro" \
             prom/alertmanager:v0.28.1 \
             check-config /etc/alertmanager/alertmanager.yml
+          docker run --rm \
+            -v "$PWD/scripts/render_alertmanager_config.py:/render.py:ro" \
+            -v "$config_dir:/out" \
+            -e ALERTMANAGER_TELEGRAM_BOT_TOKEN=123456:ci-only-token \
+            -e ALERTMANAGER_TELEGRAM_CHAT_ID=123456789 \
+            python:3.12-alpine python /render.py --output /out/alertmanager.yml
+          docker run --rm --entrypoint amtool \
+            -v "$config_dir:/etc/alertmanager:ro" \
+            prom/alertmanager:v0.28.1 \
+            check-config /etc/alertmanager/alertmanager.yml
       - name: Check shell scripts
         run: |
           sh -n docker-entrypoint.sh

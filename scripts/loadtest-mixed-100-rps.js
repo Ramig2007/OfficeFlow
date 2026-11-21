@@ -1,6 +1,7 @@
 // OfficeFlow: mixed authenticated read + booking lifecycle workload.
 // Independent browser and booking-cycle arrivals model the planned 80/20 mix.
 // Peak: 79 HTML GET/s + 7 booking cycles/s x 3 writes = 100 HTTP RPS.
+// The target is sustained for the configured duration after VU warm-up.
 // This is a lighter, realistic MIX than the failed 25 lifecycle/s (75% writes)
 // profile in CI #137; do not present that older stress profile as passed.
 // Run ONLY against a disposable DEBUG=1 database with loadtest users and a test room.
@@ -22,7 +23,12 @@ const loginFailures = new Counter('officeflow_mixed_login_failures');
 
 let session = null;
 
+const readRate = Number(__ENV.READ_RPS || 79);
+const bookingCyclesRate = Number(__ENV.BOOKING_CYCLES_RPS || 7);
+const testDuration = __ENV.DURATION || '5m';
+
 export const options = {
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
   scenarios: {
     browsing: {
       executor: 'ramping-arrival-rate',
@@ -30,11 +36,11 @@ export const options = {
       startRate: 10,
       timeUnit: '1s',
       stages: [
-        { target: 79, duration: '1m' },
-        { target: 79, duration: '2m' },
+        { target: readRate, duration: '1m' },
+        { target: readRate, duration: testDuration },
       ],
-      preAllocatedVUs: 20,
-      maxVUs: 60,
+      preAllocatedVUs: 120,
+      maxVUs: 320,
       gracefulStop: '30s',
     },
     booking_cycles: {
@@ -43,16 +49,16 @@ export const options = {
       startRate: 1,
       timeUnit: '1s',
       stages: [
-        { target: 7, duration: '1m' },
-        { target: 7, duration: '2m' },
+        { target: bookingCyclesRate, duration: '1m' },
+        { target: bookingCyclesRate, duration: testDuration },
       ],
-      preAllocatedVUs: 20,
-      maxVUs: 60,
+      preAllocatedVUs: 30,
+      maxVUs: 120,
       gracefulStop: '30s',
     },
   },
   thresholds: {
-    http_req_duration: ['p(95)<200', 'p(99)<500'],
+    'http_req_duration{phase:workload}': ['p(95)<200', 'p(99)<500'],
     http_req_failed: ['rate<0.001'],
     checks: ['rate>0.999'],
     dropped_iterations: ['count==0'],
@@ -74,7 +80,7 @@ function authenticate() {
   const loginURL = baseURL + '/accounts/login/';
   const loginPage = http.get(loginURL, {
     redirects: 0,
-    tags: { phase: 'login_page' },
+    tags: { phase: 'authentication', operation: 'login_page' },
   });
   if (loginPage.status !== 200) {
     loginFailures.add(1);
@@ -93,7 +99,7 @@ function authenticate() {
     {
       redirects: 0,
       headers: { Referer: loginURL },
-      tags: { phase: 'login_submit' },
+      tags: { phase: 'authentication', operation: 'login_submit' },
     },
   );
   if (login.status !== 302) {
@@ -129,7 +135,7 @@ export function readOnly() {
     headers: {
       Cookie: 'sessionid=' + session.sessionId + '; csrftoken=' + session.csrfToken,
     },
-    tags: { operation: 'read', route: readPath },
+    tags: { phase: 'workload', operation: 'read', route: readPath },
   });
   const freshCookies = http.cookieJar().cookiesForURL(baseURL + '/');
   if (freshCookies.csrftoken && freshCookies.csrftoken[0]) {
@@ -175,7 +181,7 @@ export function writeLifecycle() {
       starts_at: startsAt,
       ends_at: endsAt,
     }),
-    { headers, redirects: 0, tags: { operation: 'booking_create' } },
+    { headers, redirects: 0, tags: { phase: 'workload', operation: 'booking_create' } },
   );
 
   if (!check(created, {
@@ -196,7 +202,7 @@ export function writeLifecycle() {
   const edited = http.patch(
     bookingURL,
     JSON.stringify({ title: editedTitle, notes: 'Updated by mixed load test' }),
-    { headers, redirects: 0, tags: { operation: 'booking_edit' } },
+    { headers, redirects: 0, tags: { phase: 'workload', operation: 'booking_edit' } },
   );
 
   if (check(edited, {
@@ -211,7 +217,7 @@ export function writeLifecycle() {
   const cancelled = http.post(
     baseURL + '/api/v1/bookings/' + bookingId + '/cancel/',
     JSON.stringify({}),
-    { headers, redirects: 0, tags: { operation: 'booking_cancel' } },
+    { headers, redirects: 0, tags: { phase: 'workload', operation: 'booking_cancel' } },
   );
   if (check(cancelled, {
     'mixed booking cancel returns HTTP 200': (response) => response.status === 200,

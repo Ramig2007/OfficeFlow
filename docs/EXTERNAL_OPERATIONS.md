@@ -21,64 +21,119 @@
    - Monitoring Interval: **5 minutes** (Free).
 5. В **Alert Contacts** добавьте и подтвердите свой email.
 6. Сохраните монитор и убедитесь, что его состояние **Up**.
-7. Дополнительно можно создать второй HTTP(s)-монитор для `https://officeflow-x6ay.onrender.com/accounts/login/`, чтобы контролировать доступность пользовательской страницы, а не только readiness endpoint.
+7. Не создавайте дополнительные мониторы без необходимости: один readiness monitor достаточно для учебной демонстрации и проверяет приложение вместе с критической зависимостью Neon.
 
 UptimeRobot проверяет публичный HTTPS-маршрут извне. Проверка readiness должна возвращать HTTP 200. На Free доступны персональный email contact и бесплатные push-уведомления через мобильное приложение; контакт нужно явно назначить монитору. Telegram-интеграция доступна на платном Solo, а webhook-интеграция — на Team; см. [notification channels](https://help.uptimerobot.com/en/articles/11360978-understanding-notification-channels) и [mobile push](https://help.uptimerobot.com/en/articles/17662644-uptimerobot-mobile-app-push-notifications). Сохраните дату и время включения монитора — это начало измерительного окна.
 
-### Как подтвердить 99,9%
+### Период наблюдения для сдачи практики
 
-- 30 дней — минимум для учебного отчёта; предпочтительно также сохранить 90-дневную историю.
-- Бюджет простоя при 99,9% за 30 дней: **43 минуты 12 секунд**.
-- Free-план проверяет раз в 5 минут, поэтому кратковременные сбои между пробами могут быть не замечены. Такой отчёт — внешняя оценка доступности с 5-минутным разрешением, а не договорная гарантия SLA.
-- В конце окна сохраните скриншот 30-day uptime, даты начала/окончания, число инцидентов и историю событий.
-- До накопления полного свежего окна в отчёте писать: **«длительное измерение запущено; результат SLA пока не подтверждён»**.
+- **24 часа — минимальная цель** (около 288 проверок при интервале 5 минут).
+- **48 часов — рекомендуемая цель** (около 576 проверок); собирайте столько, сколько реально успеете до сдачи.
+- 5-минутный интервал не видит кратковременные сбои между пробами. Это внешняя демонстрация наблюдения, а не договорная гарантия SLA.
+- Перед сдачей сохраните скриншоты статуса Up/Down, uptime за фактический период, даты начала/окончания, число проверок и историю событий/инцидентов.
+- Формулировка в отчёте должна содержать фактическую длительность. **Не называйте 24–48 часов подтверждением месячного или годового SLA 99,9%.**
 
-Render Free засыпает после 15 минут без входящего трафика. Проверка UptimeRobot раз в 5 минут будет удерживать сервис активным и расходовать Free instance hours. Render выделяет **750 Free instance hours на весь workspace за календарный месяц**, а не на каждый сервис; один постоянно работающий сервис потребляет примерно 720 часов за 30 дней или 744 часа за 31 день. Если в том же workspace работает ещё один Free web service (например, MeetingRoomBooking), суммарный расход может превысить лимит и Render приостановит все Free web services до следующего месяца. Перед включением 5-минутного монитора проверьте Render Dashboard → Billing → Monthly included usage и число других Free services. Частые проверки не превращают Free в SLA. Время проб, инциденты и ограничения тарифа нужно указывать в итоговом отчёте. Источник: [Render Free limitations](https://render.com/docs/free).
+Render Free засыпает после 15 минут без входящего трафика, поэтому 5-минутные проверки будут удерживать сервис активным. За 24–48 часов мониторинг израсходует примерно 24–48 Free instance hours. У Render лимит **750 Free instance hours на весь workspace за календарный месяц**; перед запуском проверьте совместный расход в Render Dashboard → Billing → Monthly included usage, особенно если в workspace работают другие Free web services. Источник: [Render Free limitations](https://render.com/docs/free).
 
-## 2. Внешние уведомления Prometheus / Alertmanager
+## 2. Реальный получатель уведомлений Prometheus / Alertmanager — Telegram
 
-Prometheus, Grafana и Alertmanager из `compose.yaml` входят в локальный Docker Compose observability-профиль. Они **не развёрнуты внутри Render Free** и не получают метрики публичного Render-сервиса автоматически.
+Prometheus, Grafana и Alertmanager из `compose.yaml` входят в локальный Docker Compose observability-профиль. Они **не развёрнуты внутри Render Free** и не получают метрики публичного Render-сервиса автоматически. UptimeRobot отдельно контролирует публичный Render URL; по пользовательскому скриншоту монитор уже Up и накопил 14 ч 52 мин наблюдения.
 
-- Правила Prometheus находятся в `infra/prometheus/alerts.yml`.
-- В Alertmanager реализован безопасный HTTPS webhook renderer: `scripts/render_alertmanager_config.py`.
-- Если `ALERTMANAGER_WEBHOOK_URL` не задан, используется `null-receiver`: правила вычисляются, но уведомления человеку не доставляются.
-- Чтобы включить webhook в локальном стенде, задайте `ALERTMANAGER_WEBHOOK_URL` и при необходимости `ALERTMANAGER_WEBHOOK_BEARER_TOKEN` в локальном `.env`, затем пересоздайте observability-профиль:
+В репозитории настроен генератор `scripts/render_alertmanager_config.py`: он поддерживает native Telegram receiver и дополнительный HTTPS webhook. Без настроек сохраняется безопасный `null-receiver`; CI проверяет корректность Telegram-конфигурации через `amtool check-config`.
+
+### 2.1 Создать Telegram-бота и получить chat ID
+
+1. В Telegram откройте [@BotFather](https://t.me/BotFather), отправьте `/newbot` и выполните инструкции.
+2. Сохраните выданный **bot token**. Не отправляйте его в чат и не добавляйте в GitHub.
+3. Откройте созданного бота по ссылке, нажмите **Start** и отправьте ему `/start`.
+4. В PowerShell на своём компьютере выполните:
 
 ```powershell
-docker compose --profile observability up -d --build
+$token = Read-Host "Вставьте Telegram bot token (ввод не публикуйте)"
+$updates = Invoke-RestMethod -Uri "https://api.telegram.org/bot$token/getUpdates"
+$updates.result[-1].message.chat.id
+```
+
+Сохраните числовой `chat.id`. Если хотите получать уведомления в группе, добавьте туда бота, отправьте команду и получите ID группы (он обычно отрицательный).
+
+### 2.2 Включить Telegram в локальном Docker Compose
+
+В локальном `.env` (не в `.env.example`) добавьте:
+
+```ini
+ALERTMANAGER_TELEGRAM_BOT_TOKEN=ВАШ_ТОКЕН_БОТА
+ALERTMANAGER_TELEGRAM_CHAT_ID=ВАШ_CHAT_ID
+```
+
+Не добавляйте реальные значения в Git. Генератор записывает конфигурацию в закрытый Docker named volume `alertmanager_config`; токен не печатается в лог.
+
+Пересоздайте observability-профиль:
+
+```powershell
+docker compose --profile observability up -d --build --force-recreate
 docker compose logs --tail=50 alertmanager-config alertmanager
 ```
 
-Используйте только HTTPS endpoint, совместимый с форматом webhook Alertmanager. URL и Bearer token хранятся только в локальном `.env` или в секретном хранилище провайдера. Не коммитьте их. Реальную доставку нужно подтвердить тестовым alert и полученным сообщением.
+### 2.3 Отправить контрольное уведомление
 
-Для внешнего контроля публичного Render-сервиса email-оповещения UptimeRobot независимы от локального Alertmanager. Если нужны именно Telegram-уведомления от Alertmanager, потребуется отдельный Telegram webhook/relay и секреты; это не следует считать настроенным до проверки доставки.
+Когда Alertmanager запущен, выполните в PowerShell:
 
-## 3. Ежедневный Neon backup в Cloudflare R2
+```powershell
+$start = (Get-Date).ToUniversalTime()
+$end = $start.AddMinutes(2)
+$payload = @(
+  @{
+    labels = @{ alertname = "OfficeFlowTestAlert"; severity = "info" }
+    annotations = @{
+      summary = "OfficeFlow: тестовое уведомление"
+      description = "Проверка фактической доставки из Alertmanager в Telegram."
+    }
+    startsAt = $start.ToString("yyyy-MM-ddTHH:mm:ssZ")
+    endsAt = $end.ToString("yyyy-MM-ddTHH:mm:ssZ")
+    generatorURL = "http://localhost:9090/alerts"
+  }
+) | ConvertTo-Json -Depth 6
 
-Для Render + Neon нельзя использовать Compose/systemd backup timer как расписание облачной БД: Render Free не предоставляет постоянный systemd host. Поэтому добавлен GitHub Actions workflow:
+Invoke-RestMethod -Uri "http://localhost:9093/api/v2/alerts" -Method Post -ContentType "application/json" -Body $payload
+```
 
-- файл: `.github/workflows/backup-neon-r2.yml`;
+Закрытым считается только фактический результат: сообщение `OfficeFlow: тестовое уведомление` пришло в указанный Telegram chat. При отсутствии сообщения проверьте `docker compose logs --tail=100 alertmanager` и правильность bot token/chat ID.
+
+Этот тест подтверждает доставку тестового события из локального Alertmanager. Он **не означает**, что Alertmanager автоматически собирает метрики публичного Render: для этого нужен постоянно работающий внешний Prometheus с доступным источником метрик. Внешние уведомления о доступности самого Render обеспечиваются отдельным UptimeRobot monitor.
+
+## 3. Ежедневный Neon backup в Yandex Object Storage
+
+Для Render + Neon используется GitHub Actions: Render Free не предоставляет постоянный systemd host для расписания облачной БД. Workflow хранит PostgreSQL dump во внешнем приватном S3-совместимом бакете Yandex Object Storage.
+
+- файл: `.github/workflows/backup-neon-yandex.yml`;
 - расписание: ежедневно в **02:15 UTC**;
 - ручной запуск: GitHub → **Actions** → **OfficeFlow Neon Off-site Backup** → **Run workflow**;
 - источник: Neon direct PostgreSQL connection;
 - формат: custom PostgreSQL dump;
 - проверка: `pg_restore --list`, затем полный restore в отдельный временный PostgreSQL 17 контейнер;
-- удалённая копия: приватный Cloudflare R2 bucket;
+- удалённая копия: приватный Yandex Object Storage bucket через S3 API (`https://storage.yandexcloud.net`);
 - после загрузки workflow скачивает dump и checksum обратно и сверяет SHA-256;
 - дампы не публикуются как GitHub Actions artifacts.
 
-### 3.1 Создать R2 bucket
+### 3.1 Создать bucket в Yandex Object Storage
 
-1. Откройте https://dash.cloudflare.com/ → **Storage & databases → R2**.
-2. Включите R2 для аккаунта и создайте приватный bucket, например `officeflow-backups`.
-3. Не включайте публичный доступ к bucket.
-4. Создайте S3 API token с **Object Read & Write** только для этого bucket. Не используйте Global API Key или токен администратора.
-5. Сохраните Access Key ID и Secret Access Key в менеджере паролей. Secret Access Key показывается при создании; повторно получить его может быть нельзя.
-6. Скопируйте Account ID из Cloudflare dashboard.
-7. Настройте Lifecycle rule для удаления старых объектов, например через **30 дней**. Если нужен более долгий срок, измените правило осознанно.
-8. Cloudflare R2 имеет включённую защиту данных и бесплатный месячный объём Standard storage до 10 GB-month, 1 млн Class A и 10 млн Class B операций; превышение бесплатных лимитов тарифицируется. Сверяйте актуальные значения: [R2 pricing](https://developers.cloudflare.com/r2/pricing/).
+1. Откройте https://console.yandex.cloud/ и войдите в Yandex ID.
+2. Убедитесь, что у облака есть активный платёжный аккаунт со статусом `ACTIVE` или `TRIAL_ACTIVE`. Для физических лиц доступные способы оплаты и требования зависят от фактического резидентства: [способы оплаты Yandex Cloud](https://yandex.cloud/ru/docs/billing/payment/payment-methods-individual). Не указывайте фиктивный адрес или страну.
+3. Выберите облако и каталог (folder), откройте **Storage → Object Storage** и создайте bucket с именем `officeflow-backups` (если имя занято — добавьте короткий суффикс).
+4. Выберите регион/локацию, доступную для вашего облака, и класс хранения **Standard**.
+5. Оставьте публичный доступ выключенным. Не включайте anonymous read/list и не публикуйте объекты.
+6. Запишите имя bucket. Endpoint S3 API: `https://storage.yandexcloud.net`; регион подписи AWS CLI: `ru-central1`.
+7. Настройте Lifecycle для удаления старых объектов через 30 дней, если доступно в настройках bucket. Это ограничивает накопление хранения; проверьте правило после создания.
 
-### 3.2 Добавить GitHub Actions secrets и variables
+### 3.2 Создать отдельную учётную запись и ключ S3
+
+1. В **Identity and Access Management → Service accounts** создайте отдельный service account, например `officeflow-backup`.
+2. Назначьте ему роль `storage.editor` на нужный каталог или, если консоль позволяет, только на bucket `officeflow-backups`. Не используйте owner/admin-учётную запись для GitHub Actions.
+3. Для service account создайте **Static access key**.
+4. Сохраните `key_id` и `secret` в менеджере паролей сразу после создания: secret показывается только при выпуске ключа и повторно может быть недоступен.
+5. Не отправляйте ключи в чат, issue, PR или репозиторий. Официальная инструкция: [S3 API Yandex Object Storage](https://yandex.cloud/ru/docs/storage/s3/).
+
+### 3.3 Добавить GitHub Actions secrets и variables
 
 В GitHub откройте репозиторий → **Settings → Secrets and variables → Actions**.
 
@@ -86,60 +141,60 @@ docker compose logs --tail=50 alertmanager-config alertmanager
 
 | Имя | Значение |
 |---|---|
-| `NEON_CONNECTION_STRING` | Direct connection string из Neon для той же базы, что использует Render; не pooled connection |
-| `R2_ACCESS_KEY_ID` | S3 Access Key ID из Cloudflare R2 |
-| `R2_SECRET_ACCESS_KEY` | S3 Secret Access Key из Cloudflare R2 |
+| `NEON_CONNECTION_STRING` | Direct connection string из Neon для production database; не pooled connection |
+| `YC_ACCESS_KEY_ID` | `key_id` статического ключа service account Yandex |
+| `YC_SECRET_ACCESS_KEY` | `secret` статического ключа service account Yandex |
 
 Добавьте в **Variables**:
 
 | Имя | Значение |
 |---|---|
-| `R2_ACCOUNT_ID` | Cloudflare Account ID |
-| `R2_BUCKET` | Имя созданного приватного bucket, например `officeflow-backups` |
-| `R2_PREFIX` | `officeflow/daily` (необязательно; это префикс внутри bucket) |
+| `YC_BUCKET` | Точное имя приватного bucket, например `officeflow-backups` |
+| `YC_PREFIX` | `officeflow/daily` (необязательно; префикс объектов внутри bucket) |
 
-Для `NEON_CONNECTION_STRING` используйте **Direct connection**, не строку с `-pooler`. Убедитесь, что параметр SSL в URI — `sslmode=verify-full`. Используйте то же значение только через GitHub Secret; не вставляйте его в файл репозитория, issue, PR или чат.
+Endpoint и регион уже заданы в workflow: `https://storage.yandexcloud.net` и `ru-central1`. Для `NEON_CONNECTION_STRING` используйте **Direct connection**, не строку с `-pooler`; connection string остаётся только в GitHub Secret.
 
-### 3.3 Запустить и проверить
+### 3.4 Запустить и проверить
 
-После добавления всех трёх secrets и двух обязательных variables:
+После добавления всех трёх secrets и обязательной variable:
 
 1. Откройте **Actions → OfficeFlow Neon Off-site Backup**.
 2. Нажмите **Run workflow** на ветке `main`.
 3. Дождитесь завершения job.
 4. В логах должны присутствовать:
    - `RESTORE_TEST_OK` — дамп восстановлен в отдельную временную PostgreSQL;
-   - `OFFSITE_BACKUP_OK` — копия загружена в R2, скачана обратно и прошла SHA-256.
-5. Откройте R2 bucket и убедитесь, что там появились `.dump` и `.dump.sha256` в `officeflow/daily/`.
-6. После успешного первого запуска проверьте Lifecycle rule и запланируйте отдельную ручную DR-проверку по `docs/OFFSITE_BACKUP.md`.
+   - `OFFSITE_BACKUP_OK` — копия загружена в Yandex Object Storage, скачана обратно и прошла SHA-256.
+5. Откройте bucket и убедитесь, что появились `.dump` и `.dump.sha256` в `officeflow/daily/`.
+6. Сохраните ссылку на успешный run и скриншот списка объектов. После этого можно считать первую удалённую копию подтверждённой.
 
-Если secrets/variables ещё не добавлены, workflow безопасно завершится с пометкой **backup not configured** и ничего не скачает из Neon/не загрузит в R2. Это не является успешным резервным копированием.
+Если secrets/variables ещё не добавлены, workflow безопасно завершится с пометкой **backup not configured** и ничего не скачает из Neon/не загрузит в bucket. Это не является успешным резервным копированием.
 
-### 3.4 Ограничения
+### 3.5 Ограничения
 
-- GitHub Actions — внешний планировщик, но его cron может запускаться с задержкой; проверяйте историю запусков.
+- GitHub Actions cron может запускаться с задержкой; проверяйте историю запусков.
 - Ежедневный backup задаёт плановый RPO около 24 часов, но фактический RPO зависит от времени последней успешной копии.
-- SHA-256 подтверждает целостность переданного объекта, а полный restore в disposable DB подтверждает читаемость/восстановимость дампа в тестовой среде.
+- SHA-256 подтверждает целостность переданного объекта, а полный restore в disposable DB подтверждает восстановимость дампа в тестовой среде.
 - Не восстанавливайте дамп поверх рабочей Neon DB во время автоматической проверки.
-- Настоящий bucket, credentials, успешная первая загрузка и расписание считаются настроенными только после успешного ручного workflow run.
+- Хранилище тарифицируется по условиям Yandex Cloud; до включения регулярных копий проверьте цены, установите бюджет/уведомления о расходах и Lifecycle retention.
+- Первая удалённая копия считается настроенной только после успешного ручного workflow run с обоими маркерами.
 
 ## 4. Текущий статус
 
 | Компонент | Статус |
 |---|---|
 | Render + Neon production URL | Пользователь подтвердил Live, вход и создание переговорных |
-| UptimeRobot monitor | Инструкция готова; аккаунт, email contact и первый Up ещё требуют настройки владельцем |
+| UptimeRobot monitor | Создан, HTTP(s), проверка каждые 5 минут; на пользовательском скриншоте статус Up, 14 ч 52 мин работы, 99,931% за отображаемые 24 часа, один инцидент 503 длительностью 37 секунд; среднее время ответа 165 ms |
 | Внешние email alerts | Будут включены через Alert Contacts UptimeRobot после подтверждения email |
-| Alertmanager webhook | Код и тесты есть; endpoint/получатель ещё не выбран и доставка не подтверждена |
-| GitHub Actions backup workflow | Добавлен; требует Neon/R2 secrets и variables |
-| Cloudflare R2 bucket | Требует создания владельцем |
+| Alertmanager Telegram | Native receiver поддерживается кодом и проверяется CI; bot token/chat ID и фактическое test delivery ещё требуют настройки владельцем |
+| GitHub Actions backup workflow | Добавлен; требует Neon/Yandex secrets и variables |
+| Yandex Object Storage bucket | Требует создания владельцем |
 | Первая удалённая копия | Не подтверждена до успешного workflow run |
-| 30-дневная доступность | Начнёт измеряться после включения внешнего монитора; SLA 99,9% пока не подтверждён |
+| Внешнее наблюдение доступности | Наблюдение уже идёт; продолжить до фактических 24–48 часов и сохранить финальный скриншот. Короткий период не подтверждает месячный SLA 99,9% |
 
 ## 5. Безопасность
 
-- Не присылайте в чат `NEON_CONNECTION_STRING`, пароли, R2 Secret Access Key, Telegram token или webhook URL с токеном.
+- Не присылайте в чат `NEON_CONNECTION_STRING`, пароли, Yandex S3 secret key, Telegram token или webhook URL с токеном.
 - Все секреты вводите напрямую в Render, GitHub Actions Secrets или соответствующий внешний сервис.
-- Не делайте R2 bucket публичным.
+- Не делайте Yandex bucket публичным.
 - Не храните резервные дампы в GitHub repository или обычных CI artifacts.
 - Для проверки/восстановления используйте отдельную временную PostgreSQL, не production.

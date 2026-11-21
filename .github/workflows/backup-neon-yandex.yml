@@ -22,20 +22,20 @@ jobs:
         shell: bash
         env:
           NEON_CONNECTION_STRING: ${{ secrets.NEON_CONNECTION_STRING }}
-          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
-          R2_BUCKET: ${{ vars.R2_BUCKET }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          YC_BUCKET: ${{ vars.YC_BUCKET }}
+          YC_PREFIX: ${{ vars.YC_PREFIX }}
+          YC_ACCESS_KEY_ID: ${{ secrets.YC_ACCESS_KEY_ID }}
+          YC_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
         run: |
           set -euo pipefail
-          if [[ -z "$NEON_CONNECTION_STRING" || -z "$R2_ACCOUNT_ID" || -z "$R2_BUCKET" || -z "$R2_ACCESS_KEY_ID" || -z "$R2_SECRET_ACCESS_KEY" ]]; then
+          if [[ -z "$NEON_CONNECTION_STRING" || -z "$YC_BUCKET" || -z "$YC_ACCESS_KEY_ID" || -z "$YC_SECRET_ACCESS_KEY" ]]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
             {
               echo "## Off-site backup not configured"
               echo "Add the required GitHub Actions secrets and variables described in docs/EXTERNAL_OPERATIONS.md."
               echo "No database connection or upload was attempted."
             } >> "$GITHUB_STEP_SUMMARY"
-            echo "::notice::Backup skipped because required Neon/R2 settings are not configured."
+            echo "::notice::Backup skipped because required Neon/Yandex Object Storage settings are not configured."
             exit 0
           fi
           case "$NEON_CONNECTION_STRING" in
@@ -112,17 +112,17 @@ jobs:
               echo "RESTORE_TEST_OK: restored $table_count public tables in a disposable PostgreSQL instance."
             '
 
-      - name: Upload dump and checksum to private Cloudflare R2, then verify remote copy
+      - name: Upload dump and checksum to private Yandex Object Storage, then verify remote copy
         if: steps.config.outputs.configured == 'true'
         shell: bash
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: auto
+          AWS_ACCESS_KEY_ID: ${{ secrets.YC_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ru-central1
           AWS_EC2_METADATA_DISABLED: "true"
-          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
-          R2_BUCKET: ${{ vars.R2_BUCKET }}
-          R2_PREFIX: ${{ vars.R2_PREFIX }}
+          YC_BUCKET: ${{ vars.YC_BUCKET }}
+          YC_PREFIX: ${{ vars.YC_PREFIX }}
+          
           BACKUP_STAMP: ${{ steps.dump.outputs.stamp }}
         run: |
           set -Eeuo pipefail
@@ -130,13 +130,13 @@ jobs:
           docker run --rm --entrypoint /bin/sh \
             -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
             -e AWS_DEFAULT_REGION -e AWS_EC2_METADATA_DISABLED \
-            -e R2_ACCOUNT_ID -e R2_BUCKET -e R2_PREFIX -e BACKUP_STAMP \
+            -e YC_BUCKET -e YC_PREFIX -e BACKUP_STAMP \
             --volume "$backup_dir:/backup" \
             amazon/aws-cli:2 -euc '
-              endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
-              prefix="${R2_PREFIX:-officeflow/daily}"
+              endpoint="https://storage.yandexcloud.net"
+              prefix="${YC_PREFIX:-officeflow/daily}"
               name="officeflow-${BACKUP_STAMP}.dump"
-              destination="s3://${R2_BUCKET}/${prefix}/${name}"
+              destination="s3://${YC_BUCKET}/${prefix}/${name}"
 
               aws s3 cp "/backup/${name}" "$destination" \
                 --endpoint-url "$endpoint" --only-show-errors
@@ -150,13 +150,13 @@ jobs:
                 --endpoint-url "$endpoint" --only-show-errors
               cd /backup/remote-verify
               sha256sum -c "${name}.sha256"
-              echo "OFFSITE_BACKUP_OK: R2 upload, remote download and SHA-256 verification passed."
+              echo "OFFSITE_BACKUP_OK: Yandex Object Storage upload, remote download and SHA-256 verification passed."
             '
 
           {
             echo "## Off-site backup successful"
             echo "- Backup file: officeflow-$BACKUP_STAMP.dump"
-            echo "- Destination: private Cloudflare R2 bucket (URI intentionally omitted)."
+            echo "- Destination: private Yandex Object Storage bucket (URI intentionally omitted)."
             echo "- Full restore test: passed in a disposable PostgreSQL 17 instance."
             echo "- Remote SHA-256 verification: passed."
           } >> "$GITHUB_STEP_SUMMARY"
