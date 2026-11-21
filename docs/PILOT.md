@@ -4,7 +4,7 @@
 **Объект:** OfficeFlow — онлайн-сервис бронирования переговорных комнат.  
 **Локальная среда ручной проверки:** Windows, PowerShell 5.1, Docker Desktop Linux engine, Docker Compose, `http://localhost:8080`.  
 **Облачный стенд:** Render Free + Neon Free, публичный URL `https://officeflow-x6ay.onrender.com/`; пользователь подтвердил статус Live, успешный вход и создание переговорных 21.11.2026.
-**Статус:** локальная ручная проверка 8/8; Chromium acceptance 27/27 в CI #117; PR #20 CI run #44843044175: Quality/Docker/Scale Validation Success, 92 pytest passed; Render + Neon Live подтверждены пользователем. UptimeRobot, Alertmanager recipient и off-site R2 backup ещё требуют внешней настройки.
+**Статус:** локальная ручная проверка 8/8; Chromium acceptance 27/27 в CI #117; PR #20 CI run #44843044175: Quality/Docker/Scale Validation Success, 92 pytest passed; Render + Neon Live подтверждены пользователем. В `main` добавлен Neon→R2 backup workflow; bucket/credentials, Telegram receiver и UptimeRobot monitor требуют настройки владельцем.
 
 ## 1. Паспорт проверенной среды
 
@@ -68,11 +68,11 @@
 
 - Prometheus: 3/3 targets UP в локальном стенде; пять alert rules прошли проверку.
 - Grafana dashboard: конфигурация подготовлена, локальный observability stack запускался.
-- Alertmanager: default receiver — `null-receiver`; реальная доставка не включена, пока владелец не выбрал и не добавил HTTPS webhook endpoint.
-- Публичный Render + Neon сервис Live; для независимых email alerts подготовлена настройка UptimeRobot на `/health/ready/`, но аккаунт, monitor и Alert Contact ещё не созданы.
+- Alertmanager: default receiver остаётся `null-receiver`, если credentials пусты; native Telegram receiver и HTTPS webhook поддерживаются генератором и проверяются в CI. Telegram bot token/chat ID и фактический test delivery ещё требуют настройки владельцем.
+- Публичный Render + Neon сервис Live; UptimeRobot monitor на `/health/ready/` ещё не создан. Для сдачи практики целевое внешнее наблюдение — 24–48 часов, с фиксацией фактического периода.
 - Backup: локальный dump и independent restore проверены CI #117.
-- Off-site: в текущей PR-ветке добавлен GitHub Actions workflow ежедневного Neon dump → полный restore в disposable PostgreSQL → Cloudflare R2 upload/download + SHA-256. Bucket, GitHub secrets/variables и первый успешный run ещё не настроены.
-- SLA 99,9%: 30-дневное внешнее измерение ещё не начато; после включения UptimeRobot нужно сохранить дату старта и дождаться полного свежего окна.
+- Off-site: GitHub Actions workflow Neon dump → полный restore в disposable PostgreSQL → Cloudflare R2 upload/download + SHA-256 находится в `main`. Bucket, GitHub secrets/variables и первый успешный run ещё не настроены.
+- SLA 99,9% не подтверждён: короткое 24–48-часовое наблюдение демонстрирует внешний контроль, но не является доказательством месячного/годового SLA.
 
 ## 6. Расширенный чек-лист опытной эксплуатации
 
@@ -91,10 +91,10 @@
 | PILOT-11 | CRUD/деактивация комнаты | Chromium CI #117 | Автоматически проверено |
 | PILOT-12 | CSV и фильтры | Ручной экспорт + Chromium CI #117 | Проверено |
 | PILOT-13 | IDOR/CSRF/mass assignment | API negative tests; Bandit | Частично; внешний DAST не выполнялся |
-| PILOT-14 | Метрики и доставка алертов | Prometheus rules; HTTPS webhook renderer; UptimeRobot setup guide | Частично; Alertmanager recipient и UptimeRobot email contact не подключены |
-| PILOT-15 | Backup/restore | Independent PostgreSQL restore CI #117; Neon→R2 GitHub Actions workflow added | Restore в CI проверен; R2 bucket/secrets и первый удалённый backup ожидают настройки |
-| PILOT-16 | Mixed read/write load | PR #20 CI run #44843044175 | Пороги пройдены; фактическая средняя интенсивность 85,03 HTTP RPS, не устойчивые 100 RPS |
-| PILOT-17 | Деградация PostgreSQL/Redis | Stop→503→start→200 в CI | Проверено; HA failover не проверен |
+| PILOT-14 | Метрики и доставка алертов | Prometheus rules; Telegram receiver renderer; UptimeRobot setup guide | Код готов и валидируется CI; Telegram credentials, test message и внешний monitor требуют настройки владельцем |
+| PILOT-15 | Backup/restore | Independent PostgreSQL restore CI #117; Neon→R2 GitHub Actions workflow в `main` | Restore в CI проверен; R2 bucket/secrets и первый удалённый backup ожидают настройки |
+| PILOT-16 | Mixed read/write load | Новый 5-минутный mixed 100 RPS и 5-минутный authenticated read 200 RPS профили в `scale-validation.yml` | Ожидается новый CI run; записывать только фактические k6 результаты |
+| PILOT-17 | Деградация PostgreSQL/Redis | Stop→503→start→200 в CI; managed Neon HA обоснован в `CAPACITY.md` | Локальная деградация проверена; провайдерский Neon failover не измерялся |
 | PILOT-18 | UX 375/768/1440 | Chromium CI #117 | Проверено |
 | PILOT-19 | Приватность schedule API | PR #12 regression test | Проверено |
 
@@ -103,10 +103,10 @@
 Ранее обнаруженные и устранённые дефекты OF-001…OF-005, а также эксплуатационные риски OF-R01…OF-R09 перечислены в `DEFECT_LOG_2026-11-19.md`. Важные открытые ограничения:
 
 1. Render + Neon уже Live; полный внешний smoke всех бизнес-сценариев ещё не оформлен.
-2. Нет настоящего Alertmanager webhook recipient и подтверждённой доставки.
+2. Native Telegram receiver добавлен в код, но bot token/chat ID и реальное test delivery ещё не настроены.
 3. Нет R2 bucket/secrets и первого успешного off-site backup/restore.
-4. Нет автоматической репликации/failover PostgreSQL.
-5. Нет полного 30-дневного измерения SLA 99,9%; UptimeRobot ещё не включён.
+4. Собственная PostgreSQL streaming replication не внедрена; для managed Neon выбран архитектурный вариант provider-managed compute recovery, без собственного failover-теста и измерения RTO/RPO.
+5. UptimeRobot ещё не включён. Для сдачи практики требуется запустить монитор и собрать фактические 24–48 часов наблюдений; это не подтверждает SLA 99,9% за месяц/год.
 6. Нет независимой пользовательской приёмки.
 7. Нет фактических скриншотов публичного сайта в итоговом Word-документе.
 8. GHCR package остаётся private (публичный source repository доступен).

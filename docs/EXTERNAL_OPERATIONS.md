@@ -21,37 +21,85 @@
    - Monitoring Interval: **5 minutes** (Free).
 5. В **Alert Contacts** добавьте и подтвердите свой email.
 6. Сохраните монитор и убедитесь, что его состояние **Up**.
-7. Дополнительно можно создать второй HTTP(s)-монитор для `https://officeflow-x6ay.onrender.com/accounts/login/`, чтобы контролировать доступность пользовательской страницы, а не только readiness endpoint.
+7. Не создавайте дополнительные мониторы без необходимости: один readiness monitor достаточно для учебной демонстрации и проверяет приложение вместе с критической зависимостью Neon.
 
 UptimeRobot проверяет публичный HTTPS-маршрут извне. Проверка readiness должна возвращать HTTP 200. На Free доступны персональный email contact и бесплатные push-уведомления через мобильное приложение; контакт нужно явно назначить монитору. Telegram-интеграция доступна на платном Solo, а webhook-интеграция — на Team; см. [notification channels](https://help.uptimerobot.com/en/articles/11360978-understanding-notification-channels) и [mobile push](https://help.uptimerobot.com/en/articles/17662644-uptimerobot-mobile-app-push-notifications). Сохраните дату и время включения монитора — это начало измерительного окна.
 
-### Как подтвердить 99,9%
+### Период наблюдения для сдачи практики
 
-- 30 дней — минимум для учебного отчёта; предпочтительно также сохранить 90-дневную историю.
-- Бюджет простоя при 99,9% за 30 дней: **43 минуты 12 секунд**.
-- Free-план проверяет раз в 5 минут, поэтому кратковременные сбои между пробами могут быть не замечены. Такой отчёт — внешняя оценка доступности с 5-минутным разрешением, а не договорная гарантия SLA.
-- В конце окна сохраните скриншот 30-day uptime, даты начала/окончания, число инцидентов и историю событий.
-- До накопления полного свежего окна в отчёте писать: **«длительное измерение запущено; результат SLA пока не подтверждён»**.
+- **24 часа — минимальная цель** (около 288 проверок при интервале 5 минут).
+- **48 часов — рекомендуемая цель** (около 576 проверок); собирайте столько, сколько реально успеете до сдачи.
+- 5-минутный интервал не видит кратковременные сбои между пробами. Это внешняя демонстрация наблюдения, а не договорная гарантия SLA.
+- Перед сдачей сохраните скриншоты статуса Up/Down, uptime за фактический период, даты начала/окончания, число проверок и историю событий/инцидентов.
+- Формулировка в отчёте должна содержать фактическую длительность. **Не называйте 24–48 часов подтверждением месячного или годового SLA 99,9%.**
 
-Render Free засыпает после 15 минут без входящего трафика. Проверка UptimeRobot раз в 5 минут будет удерживать сервис активным и расходовать Free instance hours. Render выделяет **750 Free instance hours на весь workspace за календарный месяц**, а не на каждый сервис; один постоянно работающий сервис потребляет примерно 720 часов за 30 дней или 744 часа за 31 день. Если в том же workspace работает ещё один Free web service (например, MeetingRoomBooking), суммарный расход может превысить лимит и Render приостановит все Free web services до следующего месяца. Перед включением 5-минутного монитора проверьте Render Dashboard → Billing → Monthly included usage и число других Free services. Частые проверки не превращают Free в SLA. Время проб, инциденты и ограничения тарифа нужно указывать в итоговом отчёте. Источник: [Render Free limitations](https://render.com/docs/free).
+Render Free засыпает после 15 минут без входящего трафика, поэтому 5-минутные проверки будут удерживать сервис активным. За 24–48 часов мониторинг израсходует примерно 24–48 Free instance hours. У Render лимит **750 Free instance hours на весь workspace за календарный месяц**; перед запуском проверьте совместный расход в Render Dashboard → Billing → Monthly included usage, особенно если в workspace работают другие Free web services. Источник: [Render Free limitations](https://render.com/docs/free).
 
-## 2. Внешние уведомления Prometheus / Alertmanager
+## 2. Реальный получатель уведомлений Prometheus / Alertmanager — Telegram
 
-Prometheus, Grafana и Alertmanager из `compose.yaml` входят в локальный Docker Compose observability-профиль. Они **не развёрнуты внутри Render Free** и не получают метрики публичного Render-сервиса автоматически.
+Prometheus, Grafana и Alertmanager из `compose.yaml` входят в локальный Docker Compose observability-профиль. Они **не развёрнуты внутри Render Free** и не получают метрики публичного Render-сервиса автоматически. UptimeRobot отдельно контролирует публичный Render URL.
 
-- Правила Prometheus находятся в `infra/prometheus/alerts.yml`.
-- В Alertmanager реализован безопасный HTTPS webhook renderer: `scripts/render_alertmanager_config.py`.
-- Если `ALERTMANAGER_WEBHOOK_URL` не задан, используется `null-receiver`: правила вычисляются, но уведомления человеку не доставляются.
-- Чтобы включить webhook в локальном стенде, задайте `ALERTMANAGER_WEBHOOK_URL` и при необходимости `ALERTMANAGER_WEBHOOK_BEARER_TOKEN` в локальном `.env`, затем пересоздайте observability-профиль:
+В репозитории настроен генератор `scripts/render_alertmanager_config.py`: он поддерживает native Telegram receiver и дополнительный HTTPS webhook. Без настроек сохраняется безопасный `null-receiver`; CI проверяет корректность Telegram-конфигурации через `amtool check-config`.
+
+### 2.1 Создать Telegram-бота и получить chat ID
+
+1. В Telegram откройте [@BotFather](https://t.me/BotFather), отправьте `/newbot` и выполните инструкции.
+2. Сохраните выданный **bot token**. Не отправляйте его в чат и не добавляйте в GitHub.
+3. Откройте созданного бота по ссылке, нажмите **Start** и отправьте ему `/start`.
+4. В PowerShell на своём компьютере выполните:
 
 ```powershell
-docker compose --profile observability up -d --build
+$token = Read-Host "Вставьте Telegram bot token (ввод не публикуйте)"
+$updates = Invoke-RestMethod -Uri "https://api.telegram.org/bot$token/getUpdates"
+$updates.result[-1].message.chat.id
+```
+
+Сохраните числовой `chat.id`. Если хотите получать уведомления в группе, добавьте туда бота, отправьте команду и получите ID группы (он обычно отрицательный).
+
+### 2.2 Включить Telegram в локальном Docker Compose
+
+В локальном `.env` (не в `.env.example`) добавьте:
+
+```ini
+ALERTMANAGER_TELEGRAM_BOT_TOKEN=ВАШ_ТОКЕН_БОТА
+ALERTMANAGER_TELEGRAM_CHAT_ID=ВАШ_CHAT_ID
+```
+
+Не добавляйте реальные значения в Git. Генератор записывает конфигурацию в закрытый Docker named volume `alertmanager_config`; токен не печатается в лог.
+
+Пересоздайте observability-профиль:
+
+```powershell
+docker compose --profile observability up -d --build --force-recreate
 docker compose logs --tail=50 alertmanager-config alertmanager
 ```
 
-Используйте только HTTPS endpoint, совместимый с форматом webhook Alertmanager. URL и Bearer token хранятся только в локальном `.env` или в секретном хранилище провайдера. Не коммитьте их. Реальную доставку нужно подтвердить тестовым alert и полученным сообщением.
+### 2.3 Отправить контрольное уведомление
 
-Для внешнего контроля публичного Render-сервиса email-оповещения UptimeRobot независимы от локального Alertmanager. Если нужны именно Telegram-уведомления от Alertmanager, потребуется отдельный Telegram webhook/relay и секреты; это не следует считать настроенным до проверки доставки.
+Когда Alertmanager запущен, выполните в PowerShell:
+
+```powershell
+$start = (Get-Date).ToUniversalTime()
+$end = $start.AddMinutes(2)
+$payload = @(
+  @{
+    labels = @{ alertname = "OfficeFlowTestAlert"; severity = "info" }
+    annotations = @{
+      summary = "OfficeFlow: тестовое уведомление"
+      description = "Проверка фактической доставки из Alertmanager в Telegram."
+    }
+    startsAt = $start.ToString("yyyy-MM-ddTHH:mm:ssZ")
+    endsAt = $end.ToString("yyyy-MM-ddTHH:mm:ssZ")
+    generatorURL = "http://localhost:9090/alerts"
+  }
+) | ConvertTo-Json -Depth 6
+
+Invoke-RestMethod -Uri "http://localhost:9093/api/v2/alerts" -Method Post -ContentType "application/json" -Body $payload
+```
+
+Закрытым считается только фактический результат: сообщение `OfficeFlow: тестовое уведомление` пришло в указанный Telegram chat. При отсутствии сообщения проверьте `docker compose logs --tail=100 alertmanager` и правильность bot token/chat ID.
+
+Этот тест подтверждает доставку тестового события из локального Alertmanager. Он **не означает**, что Alertmanager автоматически собирает метрики публичного Render: для этого нужен постоянно работающий внешний Prometheus с доступным источником метрик. Внешние уведомления о доступности самого Render обеспечиваются отдельным UptimeRobot monitor.
 
 ## 3. Ежедневный Neon backup в Cloudflare R2
 
@@ -130,11 +178,11 @@ docker compose logs --tail=50 alertmanager-config alertmanager
 | Render + Neon production URL | Пользователь подтвердил Live, вход и создание переговорных |
 | UptimeRobot monitor | Инструкция готова; аккаунт, email contact и первый Up ещё требуют настройки владельцем |
 | Внешние email alerts | Будут включены через Alert Contacts UptimeRobot после подтверждения email |
-| Alertmanager webhook | Код и тесты есть; endpoint/получатель ещё не выбран и доставка не подтверждена |
+| Alertmanager Telegram | Native receiver поддерживается кодом и проверяется CI; bot token/chat ID и фактическое test delivery ещё требуют настройки владельцем |
 | GitHub Actions backup workflow | Добавлен; требует Neon/R2 secrets и variables |
 | Cloudflare R2 bucket | Требует создания владельцем |
 | Первая удалённая копия | Не подтверждена до успешного workflow run |
-| 30-дневная доступность | Начнёт измеряться после включения внешнего монитора; SLA 99,9% пока не подтверждён |
+| Внешнее наблюдение доступности | После включения UptimeRobot собираем 24–48 часов фактических данных; короткий период не подтверждает месячный SLA 99,9% |
 
 ## 5. Безопасность
 

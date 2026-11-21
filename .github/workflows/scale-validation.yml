@@ -51,7 +51,7 @@ jobs:
           test "$count" -eq 1000
           echo "Verified $count disposable load-test accounts."
 
-      - name: Run 1000-user capacity and booking write/edit tests
+      - name: Run 1000-user, booking lifecycle and sustained 100 RPS mixed tests
         id: scale_tests
         continue-on-error: true
         env:
@@ -100,8 +100,9 @@ jobs:
             -e BASE_URL=http://proxy \
             -e K6_PASSWORD="$DEMO_PASSWORD" \
             -e K6_ROOM_ID="$room_id" \
-            -e TARGET_CYCLES_PER_SECOND=25 \
-            -e DURATION=3m \
+            -e READ_RPS=79 \
+            -e BOOKING_CYCLES_RPS=7 \
+            -e DURATION=5m \
             -v "$PWD/scripts/loadtest-mixed-100-rps.js:/scripts/loadtest-mixed-100-rps.js:ro" \
             -v "$RUNNER_TEMP/officeflow-scale-results:/results" \
             grafana/k6:0.52.0 run \
@@ -110,14 +111,29 @@ jobs:
             2>&1 | tee "$RUNNER_TEMP/officeflow-scale-results/mixed-100-rps.log"
           mixed_status=${PIPESTATUS[0]}
 
-          kill "$stats_pid" 2>/dev/null || true
-          wait "$stats_pid" 2>/dev/null || true
-          printf 'capacity_exit_code=%s\nwrite_edit_exit_code=%s\nmixed_100_rps_exit_code=%s\n' \
-            "$capacity_status" "$write_status" "$mixed_status" \
+          docker run --rm --network officeflow_internal \
+            -e BASE_URL=http://proxy \
+            -e K6_USERNAME=loadtest01 \
+            -e K6_PASSWORD="$DEMO_PASSWORD" \
+            -e TARGET_RPS=200 \
+            -e DURATION=5m \
+            -v "$PWD/scripts/loadtest-auth-read.js:/scripts/loadtest-auth-read.js:ro" \
+            -v "$RUNNER_TEMP/officeflow-scale-results:/results" \
+            grafana/k6:0.52.0 run \
+            --summary-export=/results/authenticated-read-200-rps-summary.json \
+            /scripts/loadtest-auth-read.js \
+            2>&1 | tee "$RUNNER_TEMP/officeflow-scale-results/authenticated-read-200-rps.log"
+          read_200_status=${PIPESTATUS[0]}
+
+          printf 'capacity_exit_code=%s\nwrite_edit_exit_code=%s\nmixed_100_rps_exit_code=%s\nauthenticated_read_200_rps_exit_code=%s\n' \
+            "$capacity_status" "$write_status" "$mixed_status" "$read_200_status" \
             > "$RUNNER_TEMP/officeflow-scale-results/exit-codes.txt"
 
+          kill "$stats_pid" 2>/dev/null || true
+          wait "$stats_pid" 2>/dev/null || true
+
           set -e
-          if [[ "$capacity_status" -ne 0 || "$write_status" -ne 0 || "$mixed_status" -ne 0 ]]; then
+          if [[ "$capacity_status" -ne 0 || "$write_status" -ne 0 || "$mixed_status" -ne 0 || "$read_200_status" -ne 0 ]]; then
             echo "One or more scale tests did not meet their k6 thresholds."
             exit 1
           fi
@@ -135,7 +151,7 @@ jobs:
         if: always()
         run: docker compose down -v --remove-orphans
 
-      - name: Require both scale tests to pass
+      - name: Require all scale tests to pass
         if: always()
         env:
           PREPARE_OUTCOME: ${{ steps.prep.outcome }}
