@@ -21,7 +21,7 @@
    - Monitoring Interval: **5 minutes** (Free).
 5. В **Alert Contacts** добавьте и подтвердите свой email.
 6. Сохраните монитор и убедитесь, что его состояние **Up**.
-7. Дополнительно можно создать второй HTTP(s)-монитор для `https://officeflow-x6ay.onrender.com/accounts/login/`, чтобы контролировать доступность пользовательской страницы, а не только readiness endpoint.
+7. Не создавайте дополнительные мониторы без необходимости: один readiness monitor достаточно для учебной демонстрации и проверяет приложение вместе с критической зависимостью Neon.
 
 UptimeRobot проверяет публичный HTTPS-маршрут извне. Проверка readiness должна возвращать HTTP 200. На Free доступны персональный email contact и бесплатные push-уведомления через мобильное приложение; контакт нужно явно назначить монитору. Telegram-интеграция доступна на платном Solo, а webhook-интеграция — на Team; см. [notification channels](https://help.uptimerobot.com/en/articles/11360978-understanding-notification-channels) и [mobile push](https://help.uptimerobot.com/en/articles/17662644-uptimerobot-mobile-app-push-notifications). Сохраните дату и время включения монитора — это начало измерительного окна.
 
