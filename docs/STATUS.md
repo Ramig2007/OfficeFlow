@@ -1,60 +1,46 @@
-# Сводка фактической готовности OfficeFlow — 21.11.2026
+# OfficeFlow — фактическая сводка готовности на 21.11.2026
 
-**Актуальное состояние:** PR #20 и PR #33–#36 объединены в `main`; PR #36 добавил внешний operations guide; PR #37 переводит ежедневный Neon backup с Cloudflare R2 на Yandex Object Storage. Публичный Render + Neon сервис https://officeflow-x6ay.onrender.com/ подтверждён пользователем как **Live**; вход выполнен, переговорные созданы. Последний main CI run #44856385184 — **Success**. В текущей ветке `scale-validation/final-ops-2026-11-21` готовятся native Telegram receiver и длительные 100/200 RPS CI-профили.
-
-## Репозиторий, ветка и CI
-
-- Репозиторий исходного кода: https://github.com/Ramig2007/OfficeFlow — публичный.
-- Основная ветка: `main`.
-- PR #8, #9, #10, #12, #13, #16, #17, #18, #19, #20 и #33–#35 объединены в `main`. PR #20 добавил mixed-load validation и эксплуатационные инструменты; PR #33–#35 исправили TLS, пароль и полную Neon connection string. PR #20 run #44843044175: Quality, Docker и Scale Validation — **Success**; 92 pytest passed, coverage 91,67%. Main run #44853052929 после последних исправлений: Quality + Docker — **Success**.
-- **Код PR #17** прошёл PR CI **run #106**: jobs `quality`, `docker` и `scale-validation` — **Success**, 68 pytest passed, coverage 91,67% для двух критических модулей, 1000 успешных отдельных авторизаций, 3750 циклов создания/редактирования/отмены, 0 HTTP-ошибок. PR #17 объединён в `main`, merge commit `754ec0c`. **PR #18 CI #117** (`quality` и `docker`) — Success; Chromium 27/27, отдельный PostgreSQL restore и readiness fault recovery. Merge commit PR #18 — `3910bfd`. Исторический PR #16 CI run #93 также успешен.
-- PR CI #128: `quality` + `docker` — Success, 77 pytest passed; Docker image и production settings проверены. После этого реальный Render Free + Neon Free сервис создан: пользователь подтвердил Live, успешный вход и создание переговорных по адресу https://officeflow-x6ay.onrender.com/.
-- Main run #73 собрал и опубликовал Docker image в GHCR с тегами `latest` и commit SHA. GHCR package остаётся **Private**; публичны исходники, а не контейнерный пакет.
-- Docker CI поднимал временный Compose stack, создавал demo fixtures только в изолированной БД, запускал Playwright Chromium через Compose network и загружал скриншоты как artifact `officeflow-browser-e2e` (retention 7 дней). После проверки контейнеры и volumes удалялись.
-- Production-конфигурация и runtime smoke находятся в основной ветке: Caddy, HTTPS-настройки Django, Compose overlay, сбор статики, миграции и проверка readiness/CSS через Nginx.
+**Репозиторий:** https://github.com/Ramig2007/OfficeFlow (публичный)  
+**Основная ветка:** `main`  
+**PR #37:** объединён в `main` 21.11.2026. Он добавил смешанную нагрузку 100 RPS, read-only acceptance 100 RPS, native Telegram receiver и workflow удалённого backup в Yandex Object Storage.
 
 ## Подтверждённые результаты
 
-| Область | Факт | Статус / ограничение |
+| Область | Подтверждение | Ограничение |
 |---|---|---|
-| Пользовательская проверка | 8/8 сценариев отмечены пользователем как УСПЕХ | Один пользователь, локальная среда |
-| Django tests | **92 passed** в PR #20 CI run #44843044175 | Coverage 91,67% относится к `workspace.services` и `workspace.queries`, не ко всему приложению |
-| Покрытие критического кода | 91,67% для `workspace.services` и `workspace.queries` | Не покрытие всего приложения |
-| Browser E2E | Chromium **27/27** в PR CI #117: регистрация, вход/выход, управление ролями, VIP, брони, комнаты и CSV фильтры | Изолированная временная CI-база, ручная приёмка отдельно |
-| k6 read | ~199,2 HTTP req/s, p95=13,19 мс, 0% HTTP-ошибок, 30 секунд | Авторизованные GET, одна тестовая сессия |
-| k6 write | **3749** завершённых create/edit/cancel циклов (11 247 операций записи), 18 745/18 745 checks, p95 **14,47 мс**, 0 HTTP-ошибок и 0 dropped iterations | PR #20 CI run #44843044175; до 44 активных VU, пик 20 циклов/с (около 60 write HTTP RPS) |
-| k6 mixed read/write | 15 466 HTTP-запросов за 3 минуты, фактическая средняя скорость 85,03 RPS, p95 17,82 мс, 0 HTTP-ошибок и 0 dropped iterations | PR #20 CI run #44843044175; профиль настроен на пик 100 RPS, устойчивые 100 RPS не подтверждены |
-| k6 1000 users | **1000/1000** независимых авторизаций, 41 294 HTTP-запроса, p95 **9,50 мс**, 0 HTTP-ошибок, пик 1000 VU | PR #20 CI run #44843044175, GitHub-hosted runner; не production Render |
-| Backup/restore | CI #117: **`INDEPENDENT_RESTORE_OK`**. В PR #37 подготовлен GitHub Actions workflow: Neon dump → disposable PostgreSQL full restore → Yandex Object Storage upload/download + SHA-256 | PR #37 ожидает CI/merge; после merge нужны Yandex Object Storage bucket, GitHub secrets/variables и первый успешный run; это пока не подтверждённая удалённая копия |
-| Мониторинг | Локальный Prometheus: 3/3 targets UP, 5 alert rules валидированы; код Alertmanager поддерживает native Telegram receiver; публичный Render URL доступен | Telegram bot token/chat ID и фактическая доставка ещё требуют настройки; UptimeRobot уже Up и на момент скриншота накопил 14 ч 52 мин, 99,931% за 24 часа и один инцидент 503 на 37 секунд |
-| CI quality | Ruff, Bandit, Django checks, OpenAPI validation, deploy checks, migrations, collectstatic, pytest | PR #20 CI run #44843044175: 92 passed, coverage 91,67%; PR #37 CI проверяет Telegram receiver, его amtool config и новые 100/200 RPS k6 профили |
-| CI Docker | Compose/Caddy и Alertmanager validation, runtime smoke, Chromium **27/27**, k6 write, независимый restore и PostgreSQL/Redis recovery | **PR CI #117 Success**; merged PR #18 |
-| API privacy | Schedule API отдаёт только календарные поля; regression test проверяет отсутствие заметок и данных владельца | PR #12; run #66 Success; main run #73 Success; merge commit `6a9fe11` |
-| Production config | Render Free + Neon Free, HTTPS, secure Django settings, Neon direct connection | Публичный Render service Live; пользователь подтвердил вход и создание переговорных. Render Free не является SLA-платформой |
-| Demo account seeding | Новые demo-пользователи получают пароль из `DEMO_PASSWORD`; повторный запуск не перезаписывает действующий пароль | PR #13; regression tests включены в 62 passed main CI run #73 |
+| Quality CI | PR #37 CI run #44942581093: **112 pytest passed**, coverage **91,67%** для `workspace.services` и `workspace.queries`; Ruff, Bandit, Django/OpenAPI/deploy checks прошли | Покрытие относится к двум критическим модулям, не ко всему приложению |
+| Docker CI | PR #37 CI run #44942581093: production build, runtime smoke, Chromium **27/27**, multi-session booking write test, independent PostgreSQL restore и DB/Redis recovery — Success | Изолированный CI стенд, не производительность публичного Render |
+| 1000 пользователей | 1000/1000 независимых синтетических входов, 41 288 HTTP-запросов, 0 HTTP-ошибок; максимум 1000 VU | Не 1000 одновременных HTTP-запросов; CI runner, не production |
+| Create/edit/cancel | 3 749 полных циклов бронирования (3 749 create + 3 749 edit + 3 749 cancel), 0 HTTP-ошибок, 0 dropped iterations | Изолированная тестовая БД |
+| Mixed 100 RPS | Целевой профиль 100 RPS; фактически **93,08 RPS** в среднем за окно с ramp-up, p95 **27,36 мс**, p99 **209,02 мс**, 0 ошибок, 0 dropped iterations | Не замер на публичном Render; среднее ниже целевого пика из-за разгона профиля |
+| Read-only 100 RPS | **99,93 RPS**, 30 003 HTTP-запроса, p95 **32,36 мс**, p99 **50,16 мс**, 0 ошибок, 0 dropped iterations, 30 001 проверка успешна | Авторизованные HTML-маршруты в CI runner |
+| Дополнительный read stress 150 RPS | 109,25 RPS, p95 5,13 с, 11 739 dropped iterations | **FAIL**; это дополнительный стресс-профиль, не выдавать его за успешный |
+| Удалённый backup | Workflow run #44948853007 (**run #4**) — Success: Neon dump, полный restore в отдельный PostgreSQL 18, 14 таблиц восстановлены, upload в Yandex Object Storage, remote download и SHA-256 verification прошли | Retention/Lifecycle 30 дней отдельно в консоли Yandex не перепроверен |
+| Публичный стенд | Render + Neon: https://officeflow-x6ay.onrender.com/; readiness endpoint ответил `{"status":"ready"}`; ранее пользователь подтвердил вход и создание переговорных | Render Free не является платформой с доказанным SLA |
+| Мониторинг | Prometheus/Grafana/Alertmanager конфигурация и правила находятся в репозитории; UptimeRobot настроен для внешнего HTTPS мониторинга | Текущее непрерывное окно 24–48 ч и месячный SLA 99,9% не подтверждены этим снимком |
+| Telegram alerts | Native Telegram receiver реализован и конфигурация проходит CI validation | Реальная доставка в Telegram не подтверждена; нужен фактический тест с bot token/chat ID |
+| GHCR | Docker image собирается и публикуется в GHCR | Пакет GHCR остаётся Private; публичен исходный код |
 
-Подробные записи: `docs/USER_ACCEPTANCE_2026-11-19.md`, `docs/E2E_BROWSER_RUN.md`, `docs/LOADTEST_RESULTS_2026-11-19.md`, `docs/SCALE_RESULTS_2026-11-21.md`, `docs/BACKUP_VALIDATION.md`, `docs/TESTING.md`.
+## Удалённая резервная копия — детали
 
-## Что ещё требуется до полной сдачи
+- GitHub Actions: [run #44948853007](https://github.com/Ramig2007/OfficeFlow/actions/runs/44948853007).
+- Workflow: `.github/workflows/backup-neon-yandex.yml`.
+- Bucket: `officeflow-backups-2026`.
+- Prefix: `officeflow/daily`.
+- Файл: `officeflow-20261121T205358Z.dump` и файл контрольной суммы `.sha256`.
+- Полное восстановление проверено в одноразовом PostgreSQL 18 контейнере; восстановлено 14 public tables.
+- Дамп и SHA-256 загружены в bucket, затем скачаны обратно; `sha256sum -c` прошёл.
+- Правило хранения объектов на 30 дней не считать подтверждённым до проверки Lifecycle в консоли Yandex.
 
-1. Выполнить полный внешний smoke публичного сайта: readiness, CSS, вход, каталог, расписание, бронирование, конфликт, VIP, права и CSV. Пользователь уже подтвердил Live, вход и создание комнат, но полный внешний протокол ещё не оформлен.
-2. Создать приватный Yandex Object Storage bucket, добавить GitHub Actions secrets/variables и вручную запустить `OfficeFlow Neon Off-site Backup`; подтвердить `RESTORE_TEST_OK` и `OFFSITE_BACKUP_OK`.
-3. Продолжить уже включённый UptimeRobot monitor и собрать 24–48 часов фактических внешних наблюдений до сдачи практики; на скриншоте зафиксированы 14 ч 52 мин, 99,931% за 24 часа и один 37-секундный инцидент 503.
-4. Создать Telegram bot, добавить token/chat ID в локальный секретный `.env`, запустить Alertmanager и подтвердить доставку контрольного сообщения.
-5. Уточнить внешний DAST/UX и получить независимую приёмку, если этого требует преподаватель.
-6. Сделать реальные скриншоты публичного сайта и вставить их в итоговый Word-отчёт.
-7. При необходимости открыть GHCR package для pull без авторизации; публичные исходники и CI build уже доступны.
+## Что ещё не подтверждено
 
-## Ограничения, которые нельзя скрывать
+1. Длительный SLA 99,9%: нужны фактические внешние наблюдения за согласованный период; краткий мониторинг не доказывает месячную доступность.
+2. Реальная доставка Alertmanager → Telegram: конфигурация готова, но test message не подтверждён.
+3. Lifecycle retention 30 дней в Yandex Object Storage: проверить правило в консоли.
+4. Независимая формальная приёмка и рецензия наставника/одногруппника с датой и подписью.
+5. Полный комплект реальных скриншотов интерфейса для Word-отчёта; CI browser screenshots не заменяют скриншоты публичного сайта.
+6. Внешний DAST и проверка отказа managed Neon compute/RTO/RPO не выполнены.
 
-- ~199,2 HTTP RPS измерены для авторизованного чтения на одной сессии; отдельно CI #106 проверил до 1000 независимых сессий и ступень 20 циклов записи/с.
-- 1000 синтетических VU подтверждены в CI; write test прошёл на пике около 60 write HTTP RPS. Mixed profile PR #20 был настроен на пик 100 HTTP RPS, но фактическая средняя интенсивность за 3 минуты составила **85,03 HTTP RPS** (15 466 запросов), p95 17,82 мс, 0 ошибок и 0 dropped iterations. Это не подтверждение устойчивых 100/200 RPS на Render.
-- SLA 99,9% требует длительного измерения.
-- Для текущей managed Neon схемы собственная streaming replication/Patroni не развёрнута: Neon документирует автоматическое восстановление stateless compute на том же endpoint и отказоустойчивое storage. Это обоснование архитектуры, а не наш измеренный failover; RTO/RPO не проверены.
-- Alertmanager по умолчанию использует `null-receiver`, но renderer и CI теперь поддерживают native Telegram receiver; токен/chat ID и фактическое test delivery ещё требуют настройки владельцем. UptimeRobot отдельно контролирует публичный Render, UptimeRobot monitor включён; Alertmanager Telegram ещё требует фактической доставки.
-- PR #37 содержит workflow Neon → Yandex Object Storage с полным restore test и remote checksum verification; он ещё не объединён в `main`; bucket, credentials, первый успешный run и retention policy ещё не настроены.
-- Краткосрочное внешнее наблюдение уже идёт; целевое окно — 24–48 часов. Оно не подтверждает месячный SLA 99,9%.
-- Публичный Render Free + Neon Free service Live по адресу https://officeflow-x6ay.onrender.com/; пользователь подтвердил вход и создание переговорных. Полный независимый smoke всех бизнес-сценариев ещё не задокументирован. VPS для выбранной схемы не требуется.
-- GHCR package приватный; для первого VPS-деплоя используйте сборку из публичного Git-репозитория, как описано в `docs/DEPLOYMENT.md`, либо отдельно измените видимость пакета.
+## Корректный вывод для отчёта
 
-Подробная оценка: `docs/FINAL_READINESS_2026-11-20.md`; результаты тестов: `docs/VERIFICATION_2026-11-21.md` и `docs/SCALE_RESULTS_2026-11-21.md`; актуальная схема бесплатного хостинга: **`docs/RENDER_NEON_DEPLOYMENT.md`**, альтернативная VPS-инструкция: `docs/DEPLOYMENT.md`.
+OfficeFlow реализует основные функции бронирования, VIP-согласования и CSV-отчётности. Подтверждены автоматизированные проверки, браузерный acceptance, синтетические нагрузочные профили 1000 VU, booking write cycles, mixed/read-only 100 RPS, а также первая удалённая резервная копия с восстановлением и проверкой SHA-256. При этом 150 RPS read stress не пройден, показатели CI нельзя переносить на публичный Render, месячный SLA 99,9%, реальная доставка Telegram и формальная независимая приёмка пока не подтверждены. Не называть систему промышленно готовой.
