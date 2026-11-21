@@ -79,6 +79,19 @@ docker compose --profile observability up -d --build --force-recreate
 docker compose logs --tail=50 alertmanager-config alertmanager
 ```
 
+
+
+### 2.4 Одноразовая проверка Telegram из GitHub Actions
+
+Для проверки bot token и chat ID без передачи секретов в чат можно использовать workflow .github/workflows/telegram-delivery-check.yml:
+
+1. Откройте GitHub → Settings репозитория → Secrets and variables → Actions.
+2. Добавьте repository secrets с точными именами ALERTMANAGER_TELEGRAM_BOT_TOKEN и ALERTMANAGER_TELEGRAM_CHAT_ID.
+3. Откройте Actions → OfficeFlow Telegram Delivery Check и запустите workflow вручную.
+4. При наличии обоих секретов workflow отправит одноразовое сообщение в указанный chat и проверит ответ Telegram Bot API. Если секреты отсутствуют, workflow безопасно пропустит отправку.
+
+Первый запуск #44951325097 был пропущен, поскольку оба секрета не настроены. Не присылайте bot token в ChatGPT и не коммитьте его в репозиторий. Одноразовый тест подтверждает доступность Telegram Bot API и chat ID, но не подменяет локальный end-to-end тест Alertmanager и не подключает Prometheus к публичному Render.
+
 ### 2.3 Отправить контрольное уведомление
 
 Когда Alertmanager запущен, выполните в PowerShell:
