@@ -119,3 +119,21 @@ https://github.com/Ramig2007/OfficeFlow/actions/runs/44948853007
 В workflow исправлены две несовместимости, обнаруженные реальными запусками: клиент `pg_dump` переведён с PostgreSQL 17 на PostgreSQL 18 из-за сервера Neon 18.7; AWS CLI image закреплён на существующем официальном теге `amazon/aws-cli:2.42.1`.
 
 **Граница доказательства:** подтверждена одна успешная удалённая копия, её восстановление и целостность после скачивания. Правило Lifecycle/retention на 30 дней не подтверждено этим CI run и должно быть проверено отдельно в консоли Yandex Object Storage. Доставка Telegram-уведомления также не относится к этому backup test.
+
+
+---
+
+## Удалённая копия и Lifecycle retention — подтверждение 22.11.2026
+
+Последний backup workflow **run #12** завершился успешно:  
+https://github.com/Ramig2007/OfficeFlow/actions/runs/44951091010
+
+- Архив: officeflow-20261121T212120Z.dump.
+- Источник: Neon PostgreSQL.
+- Полное восстановление в одноразовый PostgreSQL 18 завершилось RESTORE_TEST_OK: restored 14 public tables.
+- Архив и файл SHA-256 загружены в приватный bucket officeflow-backups-2026, затем скачаны обратно; sha256sum -c вывел officeflow-20261121T212120Z.dump: OK.
+- Workflow прочитал текущие Lifecycle rules и versioning, сохранил 1 стороннее правило, установил собственное правило officeflow-backups-retention-30-days для префикса officeflow/daily/, затем запросил конфигурацию обратно.
+- Проверка завершилась сообщением: Yandex Object Storage lifecycle verified: OfficeFlow daily backups expire after 30 days.
+- Политика: текущие объекты — 30 дней; незавершённые multipart uploads — 7 дней; для включённого/приостановленного versioning добавляется истечение нетекущих версий через 30 дней.
+
+Это подтверждает сохранённую конфигурацию bucket через S3 API, а не фактическое удаление уже истёкших объектов: удаление выполняет Yandex Lifecycle по расписанию после достижения срока хранения.
