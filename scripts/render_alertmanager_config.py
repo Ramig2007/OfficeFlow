@@ -41,7 +41,7 @@ def render_config(
             or parsed.username
             or parsed.password
             or parsed.fragment
-            or any(char in webhook_url for char in "\\r\\n\\t")
+            or any(char in webhook_url for char in "\r\n\t")
         ):
             raise ValueError(
                 "ALERTMANAGER_WEBHOOK_URL must be an HTTPS URL without embedded credentials or a fragment"
@@ -53,7 +53,7 @@ def render_config(
             raise ValueError(
                 "ALERTMANAGER_TELEGRAM_BOT_TOKEN and ALERTMANAGER_TELEGRAM_CHAT_ID must be set together"
             )
-        if any(char in telegram_bot_token for char in "\\r\\n\\t"):
+        if any(char in telegram_bot_token for char in "\r\n\t"):
             raise ValueError("ALERTMANAGER_TELEGRAM_BOT_TOKEN must not contain whitespace control characters")
         try:
             chat_id = int(telegram_chat_id)
@@ -109,7 +109,7 @@ receivers:
             ]
         )
         if bearer_token:
-            if any(char in bearer_token for char in "\\r\\n"):
+            if any(char in bearer_token for char in "\r\n"):
                 raise ValueError("ALERTMANAGER_WEBHOOK_BEARER_TOKEN must not contain line breaks")
             lines.extend(
                 [
@@ -120,7 +120,7 @@ receivers:
                 ]
             )
 
-    return "\\n".join(lines) + "\\n"
+    return "\n".join(lines) + "\n"
 
 
 def main() -> int:
