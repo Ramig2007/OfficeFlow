@@ -52,6 +52,22 @@ def create_booking(page: Page, room_name: str, title: str, day: date, hour: int)
     page.locator("tr", has_text=title).wait_for(timeout=10000)
 
 
+
+def assert_booking_conflict(page: Page, room_name: str, title: str, day: date, hour: int) -> None:
+    open_ok(page, "/bookings/new/")
+    page.locator('select[name="room"]').select_option(label=room_name)
+    page.locator('input[name="title"]').fill(title)
+    page.locator('input[name="starts_at_0"]').fill(day.isoformat())
+    page.locator('select[name="starts_at_1"]').select_option(f"{hour:02d}:00")
+    page.locator('input[name="ends_at_0"]').fill(day.isoformat())
+    page.locator('select[name="ends_at_1"]').select_option(f"{hour + 1:02d}:00")
+    page.get_by_role("button", name="Забронировать время").click()
+    errors = page.locator(".field-errors")
+    errors.wait_for(timeout=10000)
+    assert "Переговорная уже занята" in errors.inner_text(), "Expected a clear booking conflict message"
+    page.screenshot(path=str(ARTIFACTS / "booking-conflict.png"), full_page=True)
+
+
 def run() -> int:
     if not PASSWORD:
         print("ERROR: K6_PASSWORD is missing in the browser container environment.", file=sys.stderr)
@@ -157,6 +173,9 @@ def run() -> int:
             create_booking(page, "Маяк", booking_title, test_day, test_hour)
             steps.append("Employee creates a standard booking through the browser form")
             print("PASS 11: booking create")
+            assert_booking_conflict(page, "Маяк", f"CI conflict {token}", test_day, test_hour)
+            steps.append("Employee receives a conflict message when trying to double-book the same room and time")
+            print("PASS 12: booking conflict prevented")
 
             booking_row = page.locator("tr", has_text=booking_title)
             booking_row.get_by_role("link", name="Изменить").click()
@@ -166,7 +185,7 @@ def run() -> int:
             edited_row = page.locator("tr", has_text=edited_title)
             edited_row.wait_for(timeout=10000)
             steps.append("Employee edits an existing booking through the browser form")
-            print("PASS 12: booking edit")
+            print("PASS 13: booking edit")
 
             page.on("dialog", lambda dialog: dialog.accept())
             edited_row.locator('form[action*="/cancel/"] button').click()
@@ -174,14 +193,14 @@ def run() -> int:
             cancelled_row = page.locator("tr", has_text=edited_title)
             assert "Отменено" in cancelled_row.inner_text(), "Booking was not marked cancelled"
             steps.append("Employee cancels the edited booking through the browser form")
-            print("PASS 13: booking cancel")
+            print("PASS 14: booking cancel")
 
             vip_approved_title = f"CI VIP approved {token}"
             vip_rejected_title = f"CI VIP rejected {token}"
             create_booking(page, "Орбита", vip_approved_title, test_day, 12)
             create_booking(page, "Орбита", vip_rejected_title, test_day, 14)
             steps.append("Employee submits two VIP requests that start as pending")
-            print("PASS 14: VIP requests submitted")
+            print("PASS 15: VIP requests submitted")
 
             manager_context = browser.new_context(
                 viewport={"width": 1440, "height": 900},
@@ -196,15 +215,18 @@ def run() -> int:
             manager_page.screenshot(path=str(ARTIFACTS / "vip-approvals.png"), full_page=True)
             open_ok(manager_page, "/reports/")
             manager_page.screenshot(path=str(ARTIFACTS / "reports.png"), full_page=True)
-            steps.append("Manager can open approvals, room management, user management and reports")
-            print("PASS 15: administrator pages")
+            open_ok(manager_page, "/api/docs/")
+            manager_page.locator(".swagger-ui").wait_for(timeout=10000)
+            manager_page.screenshot(path=str(ARTIFACTS / "swagger-ui.png"), full_page=True)
+            steps.append("Manager can open approvals, room management, user management, reports and Swagger UI")
+            print("PASS 16: administrator pages")
 
             open_ok(manager_page, "/approvals/")
             approve_row = manager_page.locator("tr", has_text=vip_approved_title)
             approve_row.locator('form[action$="/approve/"] button').click()
             manager_page.locator(".flash-stack").get_by_text("Решение сохранено").wait_for(timeout=10000)
             steps.append("Manager approves a VIP request through the browser")
-            print("PASS 16: VIP approval")
+            print("PASS 17: VIP approval")
 
             open_ok(manager_page, "/approvals/")
             reject_row = manager_page.locator("tr", has_text=vip_rejected_title)
@@ -212,7 +234,7 @@ def run() -> int:
             reject_row.locator('form[action$="/reject/"] button').click()
             manager_page.locator(".flash-stack").get_by_text("Решение сохранено").wait_for(timeout=10000)
             steps.append("Manager rejects a VIP request with a required reason")
-            print("PASS 17: VIP rejection")
+            print("PASS 18: VIP rejection")
 
             # Verify the resulting state from the employee's own account.
             open_ok(page, "/my-bookings/")
@@ -222,7 +244,7 @@ def run() -> int:
             assert "Отклонено" in rejected_row.inner_text(), "Rejected VIP booking has the wrong status"
             assert "Тестовая причина отказа" in rejected_row.inner_text(), "Rejection reason is not visible to the owner"
             steps.append("Employee sees the final VIP decisions and rejection reason")
-            print("PASS 18: VIP decision visibility")
+            print("PASS 19: VIP decision visibility")
 
             # Exercise room create, edit and deactivate on disposable CI data.
             room_name = f"CI Room {token}"
@@ -238,7 +260,7 @@ def run() -> int:
             room_row = manager_page.locator("tr", has_text=room_name)
             room_row.wait_for(timeout=10000)
             steps.append("Manager creates a room through the browser")
-            print("PASS 19: room create")
+            print("PASS 20: room create")
 
             room_row.locator('a[href*="/control/rooms/"]').click()
             manager_page.locator('input[name="capacity"]').fill("5")
@@ -247,7 +269,7 @@ def run() -> int:
             room_row = manager_page.locator("tr", has_text=room_name)
             assert "5" in room_row.inner_text(), "Room capacity was not updated"
             steps.append("Manager edits room details through the browser")
-            print("PASS 20: room edit")
+            print("PASS 21: room edit")
 
             room_row.locator('a[href*="/control/rooms/"]').click()
             active_checkbox = manager_page.locator('input[name="is_active"]')
@@ -258,7 +280,7 @@ def run() -> int:
             room_row = manager_page.locator("tr", has_text=room_name)
             assert "Отключена" in room_row.inner_text(), "Room was not deactivated"
             steps.append("Manager deactivates a room without deleting booking history")
-            print("PASS 21: room deactivate")
+            print("PASS 22: room deactivate")
 
             # Exercise filtered CSV export through the real report page and session.
             open_ok(manager_page, "/reports/")
@@ -275,7 +297,7 @@ def run() -> int:
             assert edited_title in csv_response.text(), "Filtered export omitted the expected booking"
             manager_page.screenshot(path=str(ARTIFACTS / "reports-filtered.png"), full_page=True)
             steps.append("Manager exports filtered CSV including the edited booking")
-            print("PASS 22: filtered CSV export")
+            print("PASS 23: filtered CSV export")
 
             # Register a new disposable account, exercise role assignment and log out.
             signup_username = f"ci_{token}"
@@ -296,12 +318,12 @@ def run() -> int:
             assert signup_page.url.rstrip("/") == BASE_URL, "Registration did not log in the user"
             signup_page.screenshot(path=str(ARTIFACTS / "new-user-dashboard.png"), full_page=True)
             steps.append("New employee registers and is authenticated via the real HTML form")
-            print("PASS 23: employee registration")
+            print("PASS 24: employee registration")
 
             denied = signup_context.request.get(f"{BASE_URL}/control/users/")
             assert denied.status == 403, f"New employee unexpectedly has admin access: {denied.status}"
             steps.append("Newly registered member is denied access to user administration")
-            print("PASS 24: new account permissions")
+            print("PASS 25: new account permissions")
 
             open_ok(manager_page, "/control/users/")
             member_row = manager_page.locator("tr", has_text=f"@{signup_username}")
@@ -312,7 +334,7 @@ def run() -> int:
             elevated = signup_context.request.get(f"{BASE_URL}/control/users/")
             assert elevated.status == 200, "Promoted user cannot access admin page"
             steps.append("Administrator promotes a new employee and role takes effect")
-            print("PASS 25: role promotion")
+            print("PASS 26: role promotion")
 
             member_row = manager_page.locator("tr", has_text=f"@{signup_username}")
             member_row.locator('select[name="role"]').select_option("member")
@@ -322,14 +344,14 @@ def run() -> int:
             denied_again = signup_context.request.get(f"{BASE_URL}/control/users/")
             assert denied_again.status == 403, "Revoked user still has administrative privileges"
             steps.append("Administrator revokes a role and access is immediately denied")
-            print("PASS 26: role revocation")
+            print("PASS 27: role revocation")
 
             signup_page.get_by_role("button", name="Выйти").click()
             signup_page.wait_for_url("**/accounts/login/", timeout=15000)
             signup_page.goto(f"{BASE_URL}/my-bookings/", wait_until="domcontentloaded")
             assert "/accounts/login/" in signup_page.url, "Logout did not revoke the browser session"
             steps.append("New employee logs out and protected pages require login again")
-            print("PASS 27: session logout")
+            print("PASS 28: session logout")
 
             print(f"RESULT: {len(steps)}/{len(steps)} browser acceptance checks passed")
             print(
