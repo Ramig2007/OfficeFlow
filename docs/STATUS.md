@@ -1,5 +1,7 @@
 # Сводка фактической готовности OfficeFlow — 21.11.2026
 
+**Текущая работа:** ветка `scale-validation/final-gap-closure` добавляет смешанный k6 профиль 100 HTTP RPS, unit tests для Alertmanager и off-site backup, S3 backup helper/systemd timer, а также актуализирует протоколы. Результат текущего CI ещё не получен; не считать новые тесты пройденными до зелёного run.
+
 ## Репозиторий, ветка и CI
 
 - Репозиторий исходного кода: https://github.com/Ramig2007/OfficeFlow — публичный.
@@ -22,9 +24,9 @@
 | k6 read | ~199,2 HTTP req/s, p95=13,19 мс, 0% HTTP-ошибок, 30 секунд | Авторизованные GET, одна тестовая сессия |
 | k6 write | **3750** create/edit/cancel циклов, 11 250 успешных записей, 18 750/18 750 checks, p95 10,40 мс, 0 ошибок/пропусков | CI #106, 4 мин, до 40 активных VU, верхняя ступень 20 циклов/с, ≈60 write RPS |
 | k6 1000 users | **1000** независимых логинов, пик 1000 VU, 41 299 HTTP запросов, p95 6,91 мс, 0 ошибок | CI #106, 10 мин, 3 мин удержания; не 1000 RPS и не production хост |
-| Backup/restore | CI #117: **`INDEPENDENT_RESTORE_OK`**, checksum, отдельный изолированный PostgreSQL контейнер, counts и GiST constraint | Один Docker-хост; off-host backup/внешний DR не выполнены |
+| Backup/restore | CI #117: **`INDEPENDENT_RESTORE_OK`**; текущая ветка добавляет S3 upload + checksum verify, systemd timer и mock tests | Реальный S3 bucket/IAM и restore на отдельном хосте ещё не настроены; текущие unit tests ждут CI |
 | Мониторинг | Prometheus 3/3 targets UP; 5 правил проверены; CI #93 проверил конфигурацию null и HTTPS webhook | Для фактической доставки нужен реальный webhook endpoint |
-| CI quality | Ruff, Bandit, static audit, Django checks, OpenAPI validation, deploy checks, migrations, collectstatic, pytest | Main run #73 Success; 62 passed, coverage 91,67% |
+| CI quality | Ruff, Bandit, static audit, Django checks, OpenAPI validation, deploy checks, migrations, collectstatic, pytest | PR CI #128 Success; 77 passed, coverage 91,67%. В текущей ветке добавлены тесты webhook renderer и off-site backup; ожидают CI |
 | CI Docker | Compose/Caddy и Alertmanager validation, runtime smoke, Chromium **27/27**, k6 write, независимый restore и PostgreSQL/Redis recovery | **PR CI #117 Success**; merged PR #18 |
 | API privacy | Schedule API отдаёт только календарные поля; regression test проверяет отсутствие заметок и данных владельца | PR #12; run #66 Success; main run #73 Success; merge commit `6a9fe11` |
 | Production config | Caddy HTTPS overlay, secure Django settings, backup/restore scripts | В main; реальный VPS ещё не развёрнут |
@@ -36,10 +38,12 @@
 
 1. Получить VPS и домен, настроить DNS/firewall и выполнить реальный HTTPS deploy.
 2. Пройти внешний smoke-test сайта: вход, каталог, расписание, бронирование, конфликт, VIP, права, CSV, статические файлы и health endpoints.
-3. Настроить backup за пределы VPS и проверить восстановление на отдельной машине.
-4. Настроить реальный receiver Alertmanager, если это требуется для сдачи.
-5. Тест 1000 независимых сессий и 3750 полных циклов записи успешно выполнен в CI #106. Для подтверждения 100/200 RPS **только записи**, работы production VPS и длительного SLA 99,9% потребуются отдельные испытания.
-6. Вставить фактические скриншоты сайта в подготовленный Word-отчёт и завершить формальную приёмку.
+3. Создать отдельный S3 bucket и IAM role, запустить `scripts/backup-offsite.sh`, подтвердить `OFFSITE_BACKUP_OK` и провести restore на отдельном хосте.
+4. Указать HTTPS webhook URL для Alertmanager, запустить тестовый alert и подтвердить реальную доставку.
+5. Текущий PR добавляет смешанный k6 профиль 100 HTTP RPS (79 read + 21 write на пиковой ступени); текущий результат ожидается. Ранее более интенсивный 25 lifecycle/с (75 write + 25 read) не прошёл CI #137: 221 dropped iterations, p95 1062 мс, при 0 HTTP ошибок и 100% checks. 1000 независимых сессий и 3750 циклов записи уже прошли в CI #106.
+6. Создать Render/Neon сервисы, добавить секреты только в provider dashboard и пройти внешний HTTPS smoke.
+7. Запустить независимые uptime probes после deploy и собрать полное окно минимум 30 дней для измерения SLA 99,9%.
+8. Получить независимую приёмку и подпись/согласование, если это требует преподаватель; вставить фактические скриншоты сайта в Word-отчёт.
 
 ## Ограничения, которые нельзя скрывать
 
@@ -47,8 +51,10 @@
 - 1000 синтетических VU подтверждены в 10-минутном CI-тесте, а create/edit/cancel — на ступени ~60 write RPS. Это не 1000 одновременных HTTP-запросов, не 100/200 RPS исключительно записи и не доказательство производительности реального VPS.
 - SLA 99,9% требует длительного измерения.
 - Одна PostgreSQL база без репликации остаётся единой точкой отказа.
-- Alertmanager `null-receiver` не доставляет реальные уведомления.
-- Production-конфигурация и runtime smoke проверены в CI; альтернативный Render Free + Neon Free готов в исходниках, но аккаунты, Neon secrets и публичный облачный деплой пока не настроены. VPS для выбранной схемы не требуется.
+- Alertmanager `null-receiver` не доставляет реальные уведомления; webhook требует внешнего URL.
+- S3 backup tooling добавлен, но удалённое хранилище, IAM и фактический off-site restore не настроены.
+- Автоматической репликации/failover PostgreSQL нет; текущий учебный профиль использует одну БД.
+- Production-конфигурация и runtime smoke проверены в CI; Render Free + Neon Free готов в исходниках, но аккаунты, Neon secrets и публичный облачный деплой пока не настроены. VPS для выбранной схемы не требуется.
 - GHCR package приватный; для первого VPS-деплоя используйте сборку из публичного Git-репозитория, как описано в `docs/DEPLOYMENT.md`, либо отдельно измените видимость пакета.
 
 Подробная оценка: `docs/FINAL_READINESS_2026-11-20.md`; результаты тестов: `docs/VERIFICATION_2026-11-21.md` и `docs/SCALE_RESULTS_2026-11-21.md`; актуальная схема бесплатного хостинга: **`docs/RENDER_NEON_DEPLOYMENT.md`**, альтернативная VPS-инструкция: `docs/DEPLOYMENT.md`.

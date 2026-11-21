@@ -56,7 +56,7 @@ docker run -d --rm \
 
 ready=0
 for attempt in $(seq 1 60); do
-    if docker exec "$DR_CONTAINER" pg_isready -U "$DR_USER" -d "$DR_DB" >/dev/null 2>&1; then
+    if docker exec "$DR_CONTAINER" pg_isready -h 127.0.0.1 -U "$DR_USER" -d "$DR_DB" >/dev/null 2>&1; then
         ready=1
         break
     fi
@@ -69,12 +69,16 @@ fi
 
 docker cp "$BACKUP_FILE" "$DR_CONTAINER:/tmp/officeflow-dr.dump" >/dev/null
 docker exec "$DR_CONTAINER" pg_restore --list /tmp/officeflow-dr.dump >/dev/null
-docker exec "$DR_CONTAINER" sh -c \
-    'pg_restore --exit-on-error --no-owner --no-acl -U "$POSTGRES_USER" -d "$POSTGRES_DB" /tmp/officeflow-dr.dump'
+if ! docker exec "$DR_CONTAINER" sh -c \
+    'pg_restore --exit-on-error --no-owner --no-acl -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" /tmp/officeflow-dr.dump'; then
+    echo "Independent PostgreSQL restore failed; container logs follow:" >&2
+    docker logs "$DR_CONTAINER" >&2 || true
+    exit 1
+fi
 
 echo "Checking restored application tables and PostgreSQL exclusion constraint..."
 restored_counts="$(docker exec "$DR_CONTAINER" sh -c \
-    'psql -X -qAt -F "|" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "$1"' sh "$COUNTS_SQL")"
+    'psql -h 127.0.0.1 -X -qAt -F "|" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "$1"' sh "$COUNTS_SQL")"
 source_counts="$(docker compose exec -T db sh -c \
     'psql -X -qAt -F "|" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "$1"' sh "$COUNTS_SQL")"
 
@@ -86,7 +90,7 @@ if [[ "$source_counts" != "$restored_counts" ]]; then
 fi
 
 constraint_count="$(docker exec "$DR_CONTAINER" sh -c \
-    'psql -X -qAt -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "$1"' sh "$CONSTRAINT_SQL")"
+    'psql -h 127.0.0.1 -X -qAt -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "$1"' sh "$CONSTRAINT_SQL")"
 if [[ "$constraint_count" != "1" ]]; then
     echo "INDEPENDENT_RESTORE_CONSTRAINT_MISSING" >&2
     exit 1
