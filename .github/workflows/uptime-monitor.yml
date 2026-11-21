@@ -1,0 +1,85 @@
+name: OfficeFlow External Uptime Probe
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: officeflow-external-uptime
+  cancel-in-progress: false
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Probe public Render readiness endpoint
+        shell: bash
+        env:
+          TARGET_URL: https://officeflow-x6ay.onrender.com/health/ready/
+        run: |
+          set -u
+          checked_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          body="$RUNNER_TEMP/officeflow-readiness.json"
+          error_file="$RUNNER_TEMP/officeflow-curl-error.txt"
+
+          set +e
+          metrics="$(curl --silent --show-error --connect-timeout 10 --max-time 25 --output "$body" --write-out '%{http_code} %{time_total}' "$TARGET_URL" 2>"$error_file")"
+          curl_exit=$?
+          set -e
+
+          http_status="000"
+          latency_seconds="n/a"
+          if [[ -n "$metrics" ]]; then
+            read -r http_status latency_seconds <<< "$metrics"
+          fi
+
+          ready_json=false
+          if [[ "$curl_exit" -eq 0 && "$http_status" == "200" && -s "$body" ]]; then
+            if python3 - "$body" <<'PY'
+          import json, sys
+          try:
+              with open(sys.argv[1], encoding="utf-8") as handle:
+                  payload = json.load(handle)
+          except (OSError, json.JSONDecodeError):
+              raise SystemExit(1)
+          raise SystemExit(0 if payload.get("status") == "ready" else 1)
+          PY
+            then
+              ready_json=true
+            fi
+          fi
+
+          latency_ms="n/a"
+          if [[ "$latency_seconds" != "n/a" ]]; then
+            latency_ms="$(python3 -c 'import sys; print(round(float(sys.argv[1]) * 1000, 2))' "$latency_seconds")"
+          fi
+
+          if [[ "$curl_exit" -eq 0 && "$http_status" == "200" && "$ready_json" == "true" ]]; then
+            result="PASS"
+          else
+            result="FAIL"
+          fi
+
+          {
+            echo "## OfficeFlow external uptime probe"
+            echo "- Checked at (UTC): $checked_at"
+            echo "- Endpoint: $TARGET_URL"
+            echo "- Result: **$result**"
+            echo "- HTTP status: $http_status"
+            echo "- Latency: $latency_ms ms"
+            echo "- curl exit code: $curl_exit"
+            if [[ -s "$error_file" ]]; then
+              echo "- Network error recorded in the job log."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "$checked_at result=$result http=$http_status latency_ms=$latency_ms"
+          if [[ "$result" != "PASS" ]]; then
+            echo "::error::OfficeFlow public readiness probe failed."
+            exit 1
+          fi
