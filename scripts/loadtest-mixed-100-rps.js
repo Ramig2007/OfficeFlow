@@ -1,6 +1,7 @@
 // OfficeFlow: mixed authenticated read + booking lifecycle workload.
 // Independent browser and booking-cycle arrivals model the planned 80/20 mix.
 // Peak: 79 HTML GET/s + 7 booking cycles/s x 3 writes = 100 HTTP RPS.
+// The target is sustained for the configured duration after VU warm-up.
 // This is a lighter, realistic MIX than the failed 25 lifecycle/s (75% writes)
 // profile in CI #137; do not present that older stress profile as passed.
 // Run ONLY against a disposable DEBUG=1 database with loadtest users and a test room.
@@ -22,32 +23,30 @@ const loginFailures = new Counter('officeflow_mixed_login_failures');
 
 let session = null;
 
+const readRate = Number(__ENV.READ_RPS || 79);
+const bookingCyclesRate = Number(__ENV.BOOKING_CYCLES_RPS || 7);
+const testDuration = __ENV.DURATION || '5m';
+
 export const options = {
   scenarios: {
     browsing: {
-      executor: 'ramping-arrival-rate',
+      executor: 'constant-arrival-rate',
       exec: 'readOnly',
-      startRate: 10,
+      rate: readRate,
       timeUnit: '1s',
-      stages: [
-        { target: 79, duration: '1m' },
-        { target: 79, duration: '2m' },
-      ],
-      preAllocatedVUs: 20,
-      maxVUs: 60,
+      duration: testDuration,
+      preAllocatedVUs: 40,
+      maxVUs: 160,
       gracefulStop: '30s',
     },
     booking_cycles: {
-      executor: 'ramping-arrival-rate',
+      executor: 'constant-arrival-rate',
       exec: 'writeLifecycle',
-      startRate: 1,
+      rate: bookingCyclesRate,
       timeUnit: '1s',
-      stages: [
-        { target: 7, duration: '1m' },
-        { target: 7, duration: '2m' },
-      ],
-      preAllocatedVUs: 20,
-      maxVUs: 60,
+      duration: testDuration,
+      preAllocatedVUs: 30,
+      maxVUs: 100,
       gracefulStop: '30s',
     },
   },
