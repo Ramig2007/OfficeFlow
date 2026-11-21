@@ -80,7 +80,7 @@ jobs:
       - name: Test suite and critical-module coverage
         run: pytest -q --cov=workspace.services --cov=workspace.queries --cov-report=term-missing --cov-fail-under=70
       - name: Package source artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: officeflow-source
           path: .
@@ -242,7 +242,7 @@ jobs:
             grafana/k6:0.52.0 run /scripts/loadtest-booking-write.js
       - name: Upload browser E2E screenshots
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: officeflow-browser-e2e
           path: ${{ runner.temp }}/officeflow-e2e-artifacts/
