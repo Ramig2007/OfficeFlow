@@ -107,7 +107,7 @@ jobs:
               db="postgresql://restore:${RESTORE_PASSWORD}@officeflow-backup-restore-db:5432/officeflow_restore"
               pg_restore --no-password --exit-on-error --no-owner --no-acl \
                 --dbname="$db" "/backup/officeflow-${BACKUP_STAMP}.dump"
-              table_count="$(psql --no-password "$db" -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema = '''public''' AND table_type = '''BASE TABLE'''")"
+              table_count="$(psql --no-password "$db" -Atc "SELECT count(*) FROM pg_tables WHERE schemaname = current_schema()")"
               test "$table_count" -gt 0
               echo "RESTORE_TEST_OK: restored $table_count public tables in a disposable PostgreSQL instance."
             '
@@ -155,7 +155,7 @@ jobs:
 
           {
             echo "## Off-site backup successful"
-            echo "- Backup: `officeflow-$BACKUP_STAMP.dump`"
+            echo "- Backup file: officeflow-$BACKUP_STAMP.dump"
             echo "- Destination: private Cloudflare R2 bucket (URI intentionally omitted)."
             echo "- Full restore test: passed in a disposable PostgreSQL 17 instance."
             echo "- Remote SHA-256 verification: passed."
