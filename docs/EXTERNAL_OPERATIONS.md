@@ -6,6 +6,9 @@
 
 Этот документ разделяет то, что уже подтверждено, что автоматизировано в репозитории и какие действия требуют внешних аккаунтов и секретов. Пароли, connection strings, API keys и webhook URLs с токенами нельзя добавлять в Git или отправлять в чат.
 
+
+
+Для загрузки в Yandex Object Storage workflow использует официальный Docker-образ AWS CLI `amazon/aws-cli:2.42.1` (версия закреплена, чтобы сборка не зависела от плавающего тега).
 ## 1. Внешние уведомления о доступности — UptimeRobot
 
 Для публичного Render-сервиса используется независимый мониторинг, а не внутренний Prometheus. В бесплатном плане UptimeRobot доступны до 50 мониторов и проверки каждые 5 минут; уведомления по email можно включить через Alert Contacts. Актуальные ограничения: [UptimeRobot pricing](https://uptimerobot.com/pricing/) и [monitoring interval](https://help.uptimerobot.com/en/articles/11360876-what-is-a-monitoring-interval-in-uptimerobot).
