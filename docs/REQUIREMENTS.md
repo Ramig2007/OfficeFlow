@@ -14,9 +14,9 @@
 | BR-06 | Авторизация и история | Django auth, `/my-bookings/`; вход и история проверены в пользовательском/E2E прогоне | Проверено в smoke-сценарии |
 | BR-07 | Конфликт двойной брони | блокировка строки Room, PG GiST constraint и concurrency test в PostgreSQL CI | Проверено в PostgreSQL CI; отдельный write-load PR #17 успешно завершён без конфликтов на раздельных слотах |
 | BR-08 | Базовая отчётность | `/reports/`, `/api/v1/reports/summary/`; CSV-экспорт проверен пользователем | CSV подтверждён; полная отчётность проверяется отдельно |
-| NFR-01 | Доступность ≥99,9% | Prometheus + алерты | Не измерена за длительный период |
-| NFR-02 | p95 latency ≤200 мс | Историческое чтение 13,19 мс; PR CI #106 — 1000 VU p95 6,91 мс, create/edit/cancel p95 10,40 мс | Пройдено только для измеренных CI-профилей и периодов, не для публичного VPS |
-| NFR-03 | Error rate ≤0,1% | PR CI #106: 41 299 HTTP чтений/логинов + 11 350 HTTP запросов write-сценария, 0% HTTP-ошибок | Пройдено только для измеренных CI-профилей и периодов, не долгосрочная гарантия |
+| NFR-01 | Доступность ≥99,9% | Внешний HTTPS мониторинг UptimeRobot для `https://officeflow-x6ay.onrender.com/health/ready/` | 30-дневное измерение ещё не начато; SLA не подтверждён |
+| NFR-02 | p95 latency ≤200 мс | CI #20: mixed workload p95 17,82 мс; read-only CI profile ~199,2 RPS, p95 13,19 мс | Пройдено для тестовых CI-профилей, не для публичного Render; mixed фактическая средняя скорость 85,03 RPS |
+| NFR-03 | Error rate ≤0,1% | PR #20 CI: 1000-user, write и mixed profiles завершились с 0% HTTP errors | Пройдено в CI runner; не долгосрочная гарантия и не production SLA |
 | NFR-04 | Логирование действий | `AuditEvent` и console log (доменные переходы) | Реализовано; полноту аудита для всех административных действий проверить |
 
 ## 1. Инструментальные средства и CI/CD
@@ -27,7 +27,7 @@
 | 1.2 | IDE + линтер + форматер | `.vscode/`, `pyproject.toml`, Ruff | конфигурация |
 | 1.3 | Репозиторий Git | публичный `Ramig2007/OfficeFlow`, README и `.gitignore` | Проверено в GitHub |
 | 1.4 | Окружение с app, БД, Redis | `compose.yaml`, `Dockerfile`; локальный стек работал, app healthy | Проверено локально |
-| 1.5 | CI: сборка, тесты, стиль | `.github/workflows/ci.yml` и `scale-validation.yml`; PR CI #106/#117 | Quality + Docker + Scale Validation Success; 68 pytest, Chromium 27/27, independent PostgreSQL recovery |
+| 1.5 | CI: сборка, тесты, стиль | `.github/workflows/ci.yml`, `scale-validation.yml`; PR #20 CI run #44843044175 | Quality + Docker + Scale Validation Success; 92 pytest, 91,67% coverage, Chromium 27/27 в отдельном CI #117 |
 | 1.6 | Доступный Docker-образ | `ghcr.io/ramig2007/officeflow:latest` опубликован | Пакет Private; публичная доступность не подтверждена |
 
 ## 2. Разработка программного кода
@@ -51,9 +51,9 @@
 | 3.1 | Таблица компонент/назначение/обоснование | `CAPACITY.md` | документация |
 | 3.2 | CPU/RAM/диск на 1000 пользователей, 100 RPS | формульная оценка `CAPACITY.md` | оценка, не измерение |
 | 3.3 | Отказоустойчивость, репликация | топология и ограничения в `CAPACITY.md` | проектная рекомендация |
-| 3.4 | Backup/restore | PowerShell/Linux backup, independent restore, `scripts/backup-offsite.sh`, systemd timer; mock-S3 integrity tests | CI #117: **INDEPENDENT_RESTORE_OK**; off-site upload tooling and tests added in current branch, real bucket/IAM and restore on a separate provider still require setup |
+| 3.4 | Backup/restore | CI #117 independent restore; GitHub Actions workflow `.github/workflows/backup-neon-r2.yml` для ежедневного Neon dump, полного restore test и загрузки в Cloudflare R2 | Workflow добавлен в PR-ветку; R2 bucket/secrets и первый успешный off-site backup ещё не настроены |
 | 3.5 | Healthcheck | `/health/live/`, `/health/ready/`, Compose checks; app healthy локально | Проверено локально |
-| 3.6 | Бенчмарки и обоснования | `CAPACITY.md`, k6 baseline и `SCALE_RESULTS_2026-11-21.md` | Подтверждены 1000 отдельных синтетических сессий и 3750 create/edit/cancel циклов в PR CI #106; production не измерен |
+| 3.6 | Бенчмарки и обоснования | `CAPACITY.md`, k6 baseline и `SCALE_RESULTS_2026-11-21.md` | 1000 синтетических сессий и 3749 create/edit/cancel циклов подтверждены PR #20 CI; смешанный профиль — 85,03 RPS в среднем при пике 100 RPS; production не измерен |
 
 ## 4. Модификация информационной системы
 
@@ -64,7 +64,7 @@
 | 4.3 | Нельзя обойти согласование | статус выбирается сервером, тесты проверяют VIP pending и запрет self-approval | Реализовано и покрыто тестами |
 | 4.4 | CSV экспорт и фильтры | `queries.export_csv`, date/room | код |
 | 4.5 | Impact analysis | `CHANGE_ANALYSIS.md` | документация |
-| 4.6 | Регрессионное тестирование | `test_booking_service.py`, `test_http_api.py`, тесты uptime, CI pytest | PR CI #106: 68 passed, два критических модуля — 91,67% |
+| 4.6 | Регрессионное тестирование | `test_booking_service.py`, `test_http_api.py`, pytest CI | PR #20 CI run #44843044175: 92 passed; два критических модуля — 91,67% coverage |
 
 ## 5. Критерии надёжности
 
@@ -73,22 +73,22 @@
 | 5.1 | SLA 99,9% / p95≤200 мс / error≤0,1% | `CAPACITY.md`, Prometheus alert rules | цели |
 | 5.2 | Метрики HTTP, ошибки, задержки | `django-prometheus`, Prometheus scrape; target officeflow UP | Проверено локально |
 | 5.3 | Метрики Redis и PostgreSQL | redis_exporter / postgres_exporter; оба targets UP | Проверено локально |
-| 5.4 | Алерты по SLA | `infra/prometheus/alerts.yml`, 5 правил; renderer HTTPS webhook; added unit tests | Правила и оба шаблона конфигурации проверялись CI; новые unit tests ждут CI. Реальный endpoint/доставка требуют URL и credential владельца |
+| 5.4 | Алерты по SLA | 5 Prometheus rules, HTTPS webhook renderer; внешний мониторинг публичного Render описан через UptimeRobot | Alertmanager receiver и UptimeRobot email contact ещё не подключены; доставка уведомлений не подтверждена |
 | 5.5 | Grafana dashboard | `infra/grafana/dashboards/officeflow.json` | Конфигурация готова; запуск Prometheus/Grafana проверен в локальном observability-стенде |
-| 5.6 | 100–200 RPS стресс-тест | `scripts/loadtest-mixed-100-rps.js`: два параллельных k6-сценария; пик 79 авторизованных HTML GET/с + 7 циклов бронирования/с × 3 API write = 100 HTTP RPS (79/21) | Новый смешанный профиль с p95≤200 мс и error rate≤0,1% включён в существующий scale CI; результат ожидает запуска текущего PR. Ранее подтверждены ~199,2 RPS read-only и ~60 write RPS |
+| 5.6 | 100–200 RPS стресс-тест | Read-only ~199,2 HTTP RPS; write peak около 60 HTTP write RPS; PR #20 mixed workload настроен на пик 100 RPS | Mixed run: 15 466 запросов за 3 минуты, фактическая средняя скорость **85,03 RPS**, p95 17,82 мс, 0 errors, 0 dropped; устойчивые 100 RPS не подтверждены |
 | 5.7 | Деградация БД и анализ | PR CI #93: PostgreSQL stop→readiness 503→start→readiness 200; аналогично Redis | Автоматический сценарий прошёл; HA/failover БД не доказан |
 
 ## 6. Методики тестирования
 
 | ID | Обязательный пункт | Реализация/результат | Статус |
 |---|---|---|---|
-| 6.1 | Unit бизнес-логики | `test_booking_service.py`, `test_uptime_monitoring.py`, `test_alertmanager_config.py`, `test_offsite_backup.py` | Последний подтверждённый CI #128: 77 passed; новые проверки alertmanager и off-site backup добавлены в текущем PR, результат ожидает CI |
+| 6.1 | Unit бизнес-логики | `test_booking_service.py`, `test_http_api.py`, uptime/alertmanager/off-site tests | PR #20 CI: **92 pytest passed**, coverage 91,67% для двух критических модулей; это не покрытие всего приложения |
 | 6.2 | Integration API + PostgreSQL | `test_http_api.py`, PostgreSQL service в CI | CI quality прошёл успешно |
 | 6.3 | Проверка транзакций/конкурентности | `test_concurrent_booking_only_one_wins` | Запущен в PostgreSQL CI, job прошёл |
 | 6.4 | E2E сценарии | `e2e/browser_smoke.py` (Playwright Chromium), Docker CI | **27/27** browser acceptance в PR CI #117: booking CRUD, VIP, room admin, регистрация/logout, роли, CSV, 375/768 px |
-| 6.5 | Load JMeter/k6 | `scripts/loadtest.js`, `scripts/loadtest-auth-read.js`, 1000 VU и смешанный k6 create/edit/cancel + read | PR CI #106: 1000 отдельных логинов и 3750 циклов записи. Новый профиль 100 HTTP RPS с p95<200 мс встроен в текущий scale CI; фактический результат ожидает запуска |
-| 6.6 | Статический анализ | Ruff, Bandit, static audit, Django `check`, `check --deploy` и OpenAPI schema validation | PR CI #106 quality Success |
-| 6.7 | ≥70% покрытия | CI gate на `workspace.services` + `workspace.queries` | Последний подтверждённый результат: 91,67% и 77 pytest passed в PR CI #128; новые тесты увеличат общее число, но не подменяют модульное coverage |
+| 6.5 | Load JMeter/k6 | 1000 независимых авторизаций, create/edit/cancel workload и mixed read/write сценарий | PR #20 CI: 1000/1000 логинов, 3749 циклов записи, mixed 85,03 HTTP RPS в среднем; тесты на CI runner, не Render |
+| 6.6 | Статический анализ | Ruff, Bandit, static audit, Django `check`, `check --deploy` и OpenAPI schema validation | PR #20 CI run #44843044175: Quality Success |
+| 6.7 | ≥70% покрытия | CI gate на `workspace.services` + `workspace.queries` | PR #20 CI run #44843044175: 91,67% coverage и 92 pytest passed; покрытие не относится ко всему приложению |
 | 6.8 | Дефект-реестр с приоритетами | `docs/DEFECT_LOG_2026-11-19.md` — записи с ID, severity, шагами, ожидаемым/фактическим результатом, исправлением и доказательством | Реестр структурирован; открытые эксплуатационные риски отделены от подтверждённых дефектов |
 
 ## 7. Проектная документация
@@ -107,14 +107,14 @@
 
 | ID | Обязательный пункт | Реализация/результат | Статус |
 |---|---|---|---|
-| 8.1 | Демостенд | локальный Docker Compose; альтернативно подготовлены Render Free + Neon Free (`RENDER_NEON_DEPLOYMENT.md`) | Локально проверено; облачный деплой ещё не выполнен |
+| 8.1 | Демостенд | Локальный Docker Compose и публичный Render Free + Neon Free: https://officeflow-x6ay.onrender.com/ | Render подтверждён пользователем как Live; вход и создание переговорных выполнены; полный внешний smoke всех функций ещё не оформлен |
 | 8.2 | Реалистичные тестовые данные | `seed_demo` создаёт комнаты/встречи и инициализирует пароль новых demo-пользователей из `DEMO_PASSWORD` | Код и regression tests; используется только в DEBUG=1 |
-| 8.3 | Чеклист сценариев | `PILOT.md`, пользовательская приёмка, Chromium CI | 8/8 ручных сценариев и 27/27 браузерных acceptance; независимая приёмка ещё не проведена |
-| 8.4 | Трекер ошибок (шаги/скриншоты/логи) | `docs/DEFECT_LOG_2026-11-19.md`, CI artifacts, E2E screenshots; в Word-отчёте предусмотрены места для скриншотов сайта | Реестр оформлен; фактические скриншоты с локального/публичного интерфейса и подтверждение независимого проверяющего ещё нужны |
-| 8.5 | Performance/Security/UX | `TESTING.md`, Bandit, Chromium 375/768/1440, k6 1000 VU, write и mixed 100 RPS | Предыдущие профили подтверждены; mixed 100 RPS ожидает текущий CI. Внешний DAST и публичный HTTPS smoke требуют размещения |
+| 8.3 | Чеклист сценариев | `PILOT.md`, 8/8 ручных локальных сценариев, Chromium CI 27/27 | Основные функции проверены; независимая приёмка и полный внешний smoke ещё не проведены |
+| 8.4 | Трекер ошибок (шаги/скриншоты/логи) | `docs/DEFECT_LOG_2026-11-19.md`, CI artifacts и E2E screenshots | Реестр и CI screenshots есть; реальные скриншоты публичного интерфейса для Word-отчёта и подтверждение независимого проверяющего ещё нужны |
+| 8.5 | Performance/Security/UX | `TESTING.md`, Bandit, Chromium 375/768/1440, k6 capacity/write/mixed profiles | CI профили подтверждены; внешний DAST и длительное публичное измерение доступности не выполнены |
 | 8.6 | Регрессия после исправлений | pytest, CI, Playwright smoke | Выполнена в заявленном объёме |
-| 8.7 | Отчёт и вывод готовности | `PILOT.md`, `FINAL_READINESS_2026-11-20.md`, `FINAL_GAP_CLOSURE.md`, Word-отчёт OfficeFlow | Техническая основа отчёта подготовлена; скриншоты, публичный URL (если нужен) и формальное согласование остаются |
+| 8.7 | Отчёт и вывод готовности | `PILOT.md`, `FINAL_READINESS_2026-11-20.md`, `FINAL_GAP_CLOSURE.md`, Word-отчёт OfficeFlow | Техническая основа готова; обновление отчёта, скриншоты и формальное согласование остаются |
 
 ## Критерий финального закрытия
 
-Подтверждены локальный Docker-стенд, PostgreSQL concurrency CI, 77 pytest в PR CI #128, 91,67% покрытия двух критических модулей, Chromium acceptance **27/27** в CI #117, 8/8 ручных пользовательских сценариев, 1000 отдельных синтетических логинов, 3750 циклов create/edit/cancel (11 250 операций записи), independent backup/restore в отдельном PostgreSQL контейнере и защита приватности API расписания. В текущей ветке добавлены unit tests для webhook renderer и S3 backup, off-site backup service/timer и смешанный нагрузочный профиль 100 HTTP RPS; их CI-результат пока не получен. До полной приёмки остаются реальный Render/Neon deploy и HTTPS smoke, создание отдельного S3 bucket и проверка off-site restore, реальный Alertmanager receiver, 30-дневное внешнее измерение доступности, независимая приёмка и фактические скриншоты. 1000 VU и предыдущие нагрузочные профили подтверждены только на CI runner, не на production хосте.
+Подтверждены локальный Docker-стенд, PostgreSQL concurrency CI, **92 pytest passed** в PR #20 CI run #44843044175, 91,67% покрытия двух критических модулей, Chromium acceptance **27/27** в CI #117, 8/8 ручных пользовательских сценариев, 1000 отдельных синтетических логинов, 3749 циклов create/edit/cancel, независимое восстановление PostgreSQL и защита приватности API расписания. Публичный Render + Neon сервис https://officeflow-x6ay.onrender.com/ пользователь подтвердил как Live; вход и создание переговорных выполнены. PR #20 CI также подтвердил mixed workload: 15 466 HTTP-запросов за 3 минуты, фактическая средняя интенсивность 85,03 RPS, p95 17,82 мс, 0 HTTP-ошибок и 0 dropped iterations. В текущей PR-ветке добавлены документация внешней эксплуатации и GitHub Actions workflow ежедневного Neon backup в Cloudflare R2; bucket/secrets и первый backup ещё требуют настройки. До полной приёмки остаются полный внешний smoke, реальный Alertmanager webhook, настройка UptimeRobot и накопление 30-дневной истории, первый успешный off-site backup/restore, независимая приёмка и фактические скриншоты. Нагрузочные показатели CI нельзя переносить на публичный Render Free.
