@@ -8,6 +8,7 @@ const username = __ENV.K6_USERNAME || '';
 const password = __ENV.K6_PASSWORD || '';
 
 export const options = {
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
   scenarios: {
     read_pages: {
       executor: 'constant-arrival-rate',
