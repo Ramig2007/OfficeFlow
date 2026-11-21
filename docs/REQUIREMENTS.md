@@ -75,7 +75,7 @@
 | 5.3 | Метрики Redis и PostgreSQL | redis_exporter / postgres_exporter; оба targets UP | Проверено локально |
 | 5.4 | Алерты по SLA | 5 Prometheus rules; renderer поддерживает native Telegram receiver и HTTPS webhook; UptimeRobot контролирует публичный Render независимо | Код конфигурации и CI validation готовы; нужны Telegram bot token/chat ID и UptimeRobot account/email contact, затем фактический test alert и сообщение |
 | 5.5 | Grafana dashboard | `infra/grafana/dashboards/officeflow.json` | Конфигурация готова; запуск Prometheus/Grafana проверен в локальном observability-стенде |
-| 5.6 | 100–200 RPS стресс-тест | Read-only ~199,2 HTTP RPS; write peak около 60 HTTP write RPS; PR #20 mixed workload настроен на пик 100 RPS | Mixed run: 15 466 запросов за 3 минуты, фактическая средняя скорость **85,03 RPS**, p95 17,82 мс, 0 errors, 0 dropped; устойчивые 100 RPS не подтверждены |
+| 5.6 | 100–200 RPS стресс-тест | `scale-validation.yml`: 5-минутный mixed read/write тест с постоянной интенсивностью 100 HTTP RPS и отдельный 5-минутный authenticated read-only тест 200 RPS | Новый CI-прогон ожидает подтверждения; результаты будут внесены по фактическим k6 summary, без переноса метрик CI на Render production |
 | 5.7 | Деградация БД и анализ | PR CI #93: PostgreSQL stop→readiness 503→start→readiness 200; аналогично Redis | Автоматический сценарий прошёл; HA/failover БД не доказан |
 
 ## 6. Методики тестирования
