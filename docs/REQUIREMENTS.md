@@ -14,7 +14,7 @@
 | BR-06 | Авторизация и история | Django auth, `/my-bookings/`; вход и история проверены в пользовательском/E2E прогоне | Проверено в smoke-сценарии |
 | BR-07 | Конфликт двойной брони | блокировка строки Room, PG GiST constraint и concurrency test в PostgreSQL CI | Проверено в PostgreSQL CI; отдельный write-load PR #17 успешно завершён без конфликтов на раздельных слотах |
 | BR-08 | Базовая отчётность | `/reports/`, `/api/v1/reports/summary/`; CSV-экспорт проверен пользователем | CSV подтверждён; полная отчётность проверяется отдельно |
-| NFR-01 | Доступность ≥99,9% | Внешний HTTPS мониторинг UptimeRobot для `https://officeflow-x6ay.onrender.com/health/ready/` | 30-дневное измерение ещё не начато; SLA не подтверждён |
+| NFR-01 | Доступность ≥99,9% | Внешний HTTPS мониторинг UptimeRobot для `https://officeflow-x6ay.onrender.com/health/ready/` | Месячный SLA не подтверждён; для сдачи практики собираем 24–48 часов внешних наблюдений, фиксируя только фактическое окно |
 | NFR-02 | p95 latency ≤200 мс | CI #20: mixed workload p95 17,82 мс; read-only CI profile ~199,2 RPS, p95 13,19 мс | Пройдено для тестовых CI-профилей, не для публичного Render; mixed фактическая средняя скорость 85,03 RPS |
 | NFR-03 | Error rate ≤0,1% | PR #20 CI: 1000-user, write и mixed profiles завершились с 0% HTTP errors | Пройдено в CI runner; не долгосрочная гарантия и не production SLA |
 | NFR-04 | Логирование действий | `AuditEvent` и console log (доменные переходы) | Реализовано; полноту аудита для всех административных действий проверить |
