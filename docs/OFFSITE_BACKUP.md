@@ -8,6 +8,22 @@
 
 **Важно:** наличие скрипта не означает, что удалённая копия уже существует. Нужны отдельный bucket/account, credentials или IAM role, включённое versioning и проверенная политика хранения.
 
+## Render + Neon: облачный backup через GitHub Actions
+
+Для фактической production-схемы Render Free + Neon Free systemd timer на VPS не подходит: постоянного пользовательского VPS у этой схемы нет, а Render Free не предоставляет systemd host.
+
+В репозитории добавлен workflow .github/workflows/backup-neon-r2.yml, который ежедневно в 02:15 UTC (или вручную через Actions) выполняет:
+
+1. pg_dump Neon direct connection в custom format;
+2. проверку архива через pg_restore --list;
+3. полный restore в отдельный временный PostgreSQL 17 container;
+4. upload dump + SHA-256 в private Cloudflare R2 bucket;
+5. download remote objects и повторную проверку checksum.
+
+Для запуска нужны GitHub Actions secrets NEON_CONNECTION_STRING, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY и variables R2_ACCOUNT_ID, R2_BUCKET (необязательно R2_PREFIX). Настройка bucket, ключей, Lifecycle retention и ручной первый запуск описаны пошагово в docs/EXTERNAL_OPERATIONS.md.
+
+**До первого успешного ручного workflow run с маркерами RESTORE_TEST_OK и OFFSITE_BACKUP_OK удалённую копию нельзя считать созданной.** Если workflow пропускается из-за отсутствующих secrets/variables, это не backup success.
+
 ## Предварительные условия
 
 1. Отдельный S3 bucket в другом аккаунте или хотя бы в отдельном регионе/провайдере от хоста OfficeFlow.
