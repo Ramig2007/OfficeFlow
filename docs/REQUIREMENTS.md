@@ -73,7 +73,7 @@
 | 5.1 | SLA 99,9% / p95≤200 мс / error≤0,1% | `CAPACITY.md`, Prometheus alert rules | цели |
 | 5.2 | Метрики HTTP, ошибки, задержки | `django-prometheus`, Prometheus scrape; target officeflow UP | Проверено локально |
 | 5.3 | Метрики Redis и PostgreSQL | redis_exporter / postgres_exporter; оба targets UP | Проверено локально |
-| 5.4 | Алерты по SLA | 5 Prometheus rules, HTTPS webhook renderer; внешний мониторинг публичного Render описан через UptimeRobot | Alertmanager receiver и UptimeRobot email contact ещё не подключены; доставка уведомлений не подтверждена |
+| 5.4 | Алерты по SLA | 5 Prometheus rules; renderer поддерживает native Telegram receiver и HTTPS webhook; UptimeRobot контролирует публичный Render независимо | Код конфигурации и CI validation готовы; нужны Telegram bot token/chat ID и UptimeRobot account/email contact, затем фактический test alert и сообщение |
 | 5.5 | Grafana dashboard | `infra/grafana/dashboards/officeflow.json` | Конфигурация готова; запуск Prometheus/Grafana проверен в локальном observability-стенде |
 | 5.6 | 100–200 RPS стресс-тест | Read-only ~199,2 HTTP RPS; write peak около 60 HTTP write RPS; PR #20 mixed workload настроен на пик 100 RPS | Mixed run: 15 466 запросов за 3 минуты, фактическая средняя скорость **85,03 RPS**, p95 17,82 мс, 0 errors, 0 dropped; устойчивые 100 RPS не подтверждены |
 | 5.7 | Деградация БД и анализ | PR CI #93: PostgreSQL stop→readiness 503→start→readiness 200; аналогично Redis | Автоматический сценарий прошёл; HA/failover БД не доказан |
