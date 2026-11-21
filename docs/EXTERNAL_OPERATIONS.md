@@ -110,7 +110,7 @@ Invoke-RestMethod -Uri "http://localhost:9093/api/v2/alerts" -Method Post -Conte
 - ручной запуск: GitHub → **Actions** → **OfficeFlow Neon Off-site Backup** → **Run workflow**;
 - источник: Neon direct PostgreSQL connection;
 - формат: custom PostgreSQL dump;
-- проверка: `pg_restore --list`, затем полный restore в отдельный временный PostgreSQL 17 контейнер;
+- проверка: `pg_restore --list`, затем полный restore в отдельный временный PostgreSQL 18 контейнер;
 - удалённая копия: приватный Yandex Object Storage bucket через S3 API (`https://storage.yandexcloud.net`);
 - после загрузки workflow скачивает dump и checksum обратно и сверяет SHA-256;
 - дампы не публикуются как GitHub Actions artifacts.
