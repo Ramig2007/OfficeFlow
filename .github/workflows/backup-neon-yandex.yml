@@ -62,7 +62,7 @@ jobs:
             --env NEON_CONNECTION_STRING \
             --env BACKUP_STAMP="$stamp" \
             --volume "$backup_dir:/backup" \
-            postgres:17 \
+            postgres:18 \
             sh -euc '
               pg_dump --no-password "$NEON_CONNECTION_STRING" \
                 --format=custom --no-owner --no-acl \
@@ -87,7 +87,7 @@ jobs:
             -e POSTGRES_DB=officeflow_restore \
             -e POSTGRES_USER=restore \
             -e POSTGRES_PASSWORD="$restore_password" \
-            postgres:17 >/dev/null
+            postgres:18 >/dev/null
 
           ready=0
           for attempt in $(seq 1 30); do
@@ -103,7 +103,7 @@ jobs:
             -e RESTORE_PASSWORD="$restore_password" \
             -e BACKUP_STAMP="$stamp" \
             --volume "$backup_dir:/backup:ro" \
-            postgres:17 sh -euc '
+            postgres:18 sh -euc '
               db="postgresql://restore:${RESTORE_PASSWORD}@officeflow-backup-restore-db:5432/officeflow_restore"
               pg_restore --no-password --exit-on-error --no-owner --no-acl \
                 --dbname="$db" "/backup/officeflow-${BACKUP_STAMP}.dump"
@@ -157,6 +157,6 @@ jobs:
             echo "## Off-site backup successful"
             echo "- Backup file: officeflow-$BACKUP_STAMP.dump"
             echo "- Destination: private Yandex Object Storage bucket (URI intentionally omitted)."
-            echo "- Full restore test: passed in a disposable PostgreSQL 17 instance."
+            echo "- Full restore test: passed in a disposable PostgreSQL 18 instance."
             echo "- Remote SHA-256 verification: passed."
           } >> "$GITHUB_STEP_SUMMARY"
