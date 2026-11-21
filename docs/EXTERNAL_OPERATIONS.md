@@ -101,32 +101,39 @@ Invoke-RestMethod -Uri "http://localhost:9093/api/v2/alerts" -Method Post -Conte
 
 Этот тест подтверждает доставку тестового события из локального Alertmanager. Он **не означает**, что Alertmanager автоматически собирает метрики публичного Render: для этого нужен постоянно работающий внешний Prometheus с доступным источником метрик. Внешние уведомления о доступности самого Render обеспечиваются отдельным UptimeRobot monitor.
 
-## 3. Ежедневный Neon backup в Cloudflare R2
+## 3. Ежедневный Neon backup в Yandex Object Storage
 
-Для Render + Neon нельзя использовать Compose/systemd backup timer как расписание облачной БД: Render Free не предоставляет постоянный systemd host. Поэтому добавлен GitHub Actions workflow:
+Для Render + Neon используется GitHub Actions: Render Free не предоставляет постоянный systemd host для расписания облачной БД. Workflow хранит PostgreSQL dump во внешнем приватном S3-совместимом бакете Yandex Object Storage.
 
-- файл: `.github/workflows/backup-neon-r2.yml`;
+- файл: `.github/workflows/backup-neon-yandex.yml`;
 - расписание: ежедневно в **02:15 UTC**;
 - ручной запуск: GitHub → **Actions** → **OfficeFlow Neon Off-site Backup** → **Run workflow**;
 - источник: Neon direct PostgreSQL connection;
 - формат: custom PostgreSQL dump;
 - проверка: `pg_restore --list`, затем полный restore в отдельный временный PostgreSQL 17 контейнер;
-- удалённая копия: приватный Cloudflare R2 bucket;
+- удалённая копия: приватный Yandex Object Storage bucket через S3 API (`https://storage.yandexcloud.net`);
 - после загрузки workflow скачивает dump и checksum обратно и сверяет SHA-256;
 - дампы не публикуются как GitHub Actions artifacts.
 
-### 3.1 Создать R2 bucket
+### 3.1 Создать bucket в Yandex Object Storage
 
-1. Откройте https://dash.cloudflare.com/ → **Storage & databases → R2**.
-2. Включите R2 для аккаунта и создайте приватный bucket, например `officeflow-backups`.
-3. Не включайте публичный доступ к bucket.
-4. Создайте S3 API token с **Object Read & Write** только для этого bucket. Не используйте Global API Key или токен администратора.
-5. Сохраните Access Key ID и Secret Access Key в менеджере паролей. Secret Access Key показывается при создании; повторно получить его может быть нельзя.
-6. Скопируйте Account ID из Cloudflare dashboard.
-7. Настройте Lifecycle rule для удаления старых объектов, например через **30 дней**. Если нужен более долгий срок, измените правило осознанно.
-8. Cloudflare R2 имеет включённую защиту данных и бесплатный месячный объём Standard storage до 10 GB-month, 1 млн Class A и 10 млн Class B операций; превышение бесплатных лимитов тарифицируется. Сверяйте актуальные значения: [R2 pricing](https://developers.cloudflare.com/r2/pricing/).
+1. Откройте https://console.yandex.cloud/ и войдите в Yandex ID.
+2. Убедитесь, что у облака есть активный платёжный аккаунт со статусом `ACTIVE` или `TRIAL_ACTIVE`. Для физических лиц доступные способы оплаты и требования зависят от фактического резидентства: [способы оплаты Yandex Cloud](https://yandex.cloud/ru/docs/billing/payment/payment-methods-individual). Не указывайте фиктивный адрес или страну.
+3. Выберите облако и каталог (folder), откройте **Storage → Object Storage** и создайте bucket с именем `officeflow-backups` (если имя занято — добавьте короткий суффикс).
+4. Выберите регион/локацию, доступную для вашего облака, и класс хранения **Standard**.
+5. Оставьте публичный доступ выключенным. Не включайте anonymous read/list и не публикуйте объекты.
+6. Запишите имя bucket. Endpoint S3 API: `https://storage.yandexcloud.net`; регион подписи AWS CLI: `ru-central1`.
+7. Настройте Lifecycle для удаления старых объектов через 30 дней, если доступно в настройках bucket. Это ограничивает накопление хранения; проверьте правило после создания.
 
-### 3.2 Добавить GitHub Actions secrets и variables
+### 3.2 Создать отдельную учётную запись и ключ S3
+
+1. В **Identity and Access Management → Service accounts** создайте отдельный service account, например `officeflow-backup`.
+2. Назначьте ему роль `storage.editor` на нужный каталог или, если консоль позволяет, только на bucket `officeflow-backups`. Не используйте owner/admin-учётную запись для GitHub Actions.
+3. Для service account создайте **Static access key**.
+4. Сохраните `key_id` и `secret` в менеджере паролей сразу после создания: secret показывается только при выпуске ключа и повторно может быть недоступен.
+5. Не отправляйте ключи в чат, issue, PR или репозиторий. Официальная инструкция: [S3 API Yandex Object Storage](https://yandex.cloud/ru/docs/storage/s3/).
+
+### 3.3 Добавить GitHub Actions secrets и variables
 
 В GitHub откройте репозиторий → **Settings → Secrets and variables → Actions**.
 
@@ -134,42 +141,42 @@ Invoke-RestMethod -Uri "http://localhost:9093/api/v2/alerts" -Method Post -Conte
 
 | Имя | Значение |
 |---|---|
-| `NEON_CONNECTION_STRING` | Direct connection string из Neon для той же базы, что использует Render; не pooled connection |
-| `R2_ACCESS_KEY_ID` | S3 Access Key ID из Cloudflare R2 |
-| `R2_SECRET_ACCESS_KEY` | S3 Secret Access Key из Cloudflare R2 |
+| `NEON_CONNECTION_STRING` | Direct connection string из Neon для production database; не pooled connection |
+| `YC_ACCESS_KEY_ID` | `key_id` статического ключа service account Yandex |
+| `YC_SECRET_ACCESS_KEY` | `secret` статического ключа service account Yandex |
 
 Добавьте в **Variables**:
 
 | Имя | Значение |
 |---|---|
-| `R2_ACCOUNT_ID` | Cloudflare Account ID |
-| `R2_BUCKET` | Имя созданного приватного bucket, например `officeflow-backups` |
-| `R2_PREFIX` | `officeflow/daily` (необязательно; это префикс внутри bucket) |
+| `YC_BUCKET` | Точное имя приватного bucket, например `officeflow-backups` |
+| `YC_PREFIX` | `officeflow/daily` (необязательно; префикс объектов внутри bucket) |
 
-Для `NEON_CONNECTION_STRING` используйте **Direct connection**, не строку с `-pooler`. Убедитесь, что параметр SSL в URI — `sslmode=verify-full`. Используйте то же значение только через GitHub Secret; не вставляйте его в файл репозитория, issue, PR или чат.
+Endpoint и регион уже заданы в workflow: `https://storage.yandexcloud.net` и `ru-central1`. Для `NEON_CONNECTION_STRING` используйте **Direct connection**, не строку с `-pooler`; connection string остаётся только в GitHub Secret.
 
-### 3.3 Запустить и проверить
+### 3.4 Запустить и проверить
 
-После добавления всех трёх secrets и двух обязательных variables:
+После добавления всех трёх secrets и обязательной variable:
 
 1. Откройте **Actions → OfficeFlow Neon Off-site Backup**.
 2. Нажмите **Run workflow** на ветке `main`.
 3. Дождитесь завершения job.
 4. В логах должны присутствовать:
    - `RESTORE_TEST_OK` — дамп восстановлен в отдельную временную PostgreSQL;
-   - `OFFSITE_BACKUP_OK` — копия загружена в R2, скачана обратно и прошла SHA-256.
-5. Откройте R2 bucket и убедитесь, что там появились `.dump` и `.dump.sha256` в `officeflow/daily/`.
-6. После успешного первого запуска проверьте Lifecycle rule и запланируйте отдельную ручную DR-проверку по `docs/OFFSITE_BACKUP.md`.
+   - `OFFSITE_BACKUP_OK` — копия загружена в Yandex Object Storage, скачана обратно и прошла SHA-256.
+5. Откройте bucket и убедитесь, что появились `.dump` и `.dump.sha256` в `officeflow/daily/`.
+6. Сохраните ссылку на успешный run и скриншот списка объектов. После этого можно считать первую удалённую копию подтверждённой.
 
-Если secrets/variables ещё не добавлены, workflow безопасно завершится с пометкой **backup not configured** и ничего не скачает из Neon/не загрузит в R2. Это не является успешным резервным копированием.
+Если secrets/variables ещё не добавлены, workflow безопасно завершится с пометкой **backup not configured** и ничего не скачает из Neon/не загрузит в bucket. Это не является успешным резервным копированием.
 
-### 3.4 Ограничения
+### 3.5 Ограничения
 
-- GitHub Actions — внешний планировщик, но его cron может запускаться с задержкой; проверяйте историю запусков.
+- GitHub Actions cron может запускаться с задержкой; проверяйте историю запусков.
 - Ежедневный backup задаёт плановый RPO около 24 часов, но фактический RPO зависит от времени последней успешной копии.
-- SHA-256 подтверждает целостность переданного объекта, а полный restore в disposable DB подтверждает читаемость/восстановимость дампа в тестовой среде.
+- SHA-256 подтверждает целостность переданного объекта, а полный restore в disposable DB подтверждает восстановимость дампа в тестовой среде.
 - Не восстанавливайте дамп поверх рабочей Neon DB во время автоматической проверки.
-- Настоящий bucket, credentials, успешная первая загрузка и расписание считаются настроенными только после успешного ручного workflow run.
+- Хранилище тарифицируется по условиям Yandex Cloud; до включения регулярных копий проверьте цены, установите бюджет/уведомления о расходах и Lifecycle retention.
+- Первая удалённая копия считается настроенной только после успешного ручного workflow run с обоими маркерами.
 
 ## 4. Текущий статус
 
@@ -179,15 +186,15 @@ Invoke-RestMethod -Uri "http://localhost:9093/api/v2/alerts" -Method Post -Conte
 | UptimeRobot monitor | Инструкция готова; аккаунт, email contact и первый Up ещё требуют настройки владельцем |
 | Внешние email alerts | Будут включены через Alert Contacts UptimeRobot после подтверждения email |
 | Alertmanager Telegram | Native receiver поддерживается кодом и проверяется CI; bot token/chat ID и фактическое test delivery ещё требуют настройки владельцем |
-| GitHub Actions backup workflow | Добавлен; требует Neon/R2 secrets и variables |
-| Cloudflare R2 bucket | Требует создания владельцем |
+| GitHub Actions backup workflow | Добавлен; требует Neon/Yandex secrets и variables |
+| Yandex Object Storage bucket | Требует создания владельцем |
 | Первая удалённая копия | Не подтверждена до успешного workflow run |
 | Внешнее наблюдение доступности | После включения UptimeRobot собираем 24–48 часов фактических данных; короткий период не подтверждает месячный SLA 99,9% |
 
 ## 5. Безопасность
 
-- Не присылайте в чат `NEON_CONNECTION_STRING`, пароли, R2 Secret Access Key, Telegram token или webhook URL с токеном.
+- Не присылайте в чат `NEON_CONNECTION_STRING`, пароли, Yandex S3 secret key, Telegram token или webhook URL с токеном.
 - Все секреты вводите напрямую в Render, GitHub Actions Secrets или соответствующий внешний сервис.
-- Не делайте R2 bucket публичным.
+- Не делайте Yandex bucket публичным.
 - Не храните резервные дампы в GitHub repository или обычных CI artifacts.
 - Для проверки/восстановления используйте отдельную временную PostgreSQL, не production.
