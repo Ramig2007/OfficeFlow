@@ -65,7 +65,7 @@ Workflow безопасно пропускает работу, если secrets/
 - Внешние уведомления Alertmanager — renderer и CI validation подготовлены, но Telegram token/chat ID и реальная доставка test alert ещё не подтверждены.
 - Устойчивые 100–200 HTTP RPS — предыдущий mixed CI profile достиг в среднем 85,03 RPS; новая проверка с постоянным 100 RPS mixed и 200 RPS authenticated read ожидает CI результата.
 - Производительность на 1000 реальных пользователей — 1000 VU были синтетическими и тестировались на GitHub runner.
-- Автоматический PostgreSQL HA/failover — одна Neon база без отдельной реплики не доказывает HA.
+- Собственная PostgreSQL streaming replication/failover не реализована. Для выбранного managed Neon это обосновано его stateless compute recovery и отказоустойчивым storage; read replicas Neon — read-only compute, не независимый standby. Наш failover drill и RTO/RPO не измерялись; см. `CAPACITY.md`.
 
 ## Рекомендуемый порядок завершения
 
