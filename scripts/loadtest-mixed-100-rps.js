@@ -1,6 +1,8 @@
 // OfficeFlow: mixed authenticated read + booking lifecycle workload.
-// Each iteration performs one HTML read plus create -> edit -> cancel.
-// At 25 iterations/s this is 100 HTTP requests/s (25 reads + 75 writes).
+// Independent browser and booking-cycle arrivals model the planned 80/20 mix.
+// Peak: 79 HTML GET/s + 7 booking cycles/s x 3 writes = 100 HTTP RPS.
+// This is a lighter, realistic MIX than the failed 25 lifecycle/s (75% writes)
+// profile in CI #137; do not present that older stress profile as passed.
 // Run ONLY against a disposable DEBUG=1 database with loadtest users and a test room.
 import http from 'k6/http';
 import { check, fail, sleep } from 'k6';
@@ -22,13 +24,30 @@ let session = null;
 
 export const options = {
   scenarios: {
-    mixed_read_write: {
-      executor: 'constant-arrival-rate',
-      rate: Number(__ENV.TARGET_CYCLES_PER_SECOND || 25),
+    browsing: {
+      executor: 'ramping-arrival-rate',
+      exec: 'readOnly',
+      startRate: 10,
       timeUnit: '1s',
-      duration: __ENV.DURATION || '3m',
-      preAllocatedVUs: Number(__ENV.PRE_ALLOCATED_VUS || 150),
-      maxVUs: Number(__ENV.MAX_VUS || 200),
+      stages: [
+        { target: 79, duration: '1m' },
+        { target: 79, duration: '2m' },
+      ],
+      preAllocatedVUs: 20,
+      maxVUs: 60,
+      gracefulStop: '30s',
+    },
+    booking_cycles: {
+      executor: 'ramping-arrival-rate',
+      exec: 'writeLifecycle',
+      startRate: 1,
+      timeUnit: '1s',
+      stages: [
+        { target: 7, duration: '1m' },
+        { target: 7, duration: '2m' },
+      ],
+      preAllocatedVUs: 20,
+      maxVUs: 60,
       gracefulStop: '30s',
     },
   },
@@ -92,11 +111,11 @@ function authenticate() {
   return { sessionId, csrfToken };
 }
 
-export default function () {
+export function readOnly() {
   if (!session) {
     session = authenticate();
     if (!session) {
-      fail('Could not authenticate the isolated mixed-load VU.');
+      fail('Could not authenticate the isolated mixed-load read VU.');
     }
   }
 
@@ -123,6 +142,15 @@ export default function () {
     return;
   }
   reads.add(1);
+}
+
+export function writeLifecycle() {
+  if (!session) {
+    session = authenticate();
+    if (!session) {
+      fail('Could not authenticate the isolated mixed-load writer VU.');
+    }
+  }
 
   const dayOffset = 30 + Math.floor((__VU - 1) / 9);
   const hour = 9 + ((__VU - 1) % 9);
