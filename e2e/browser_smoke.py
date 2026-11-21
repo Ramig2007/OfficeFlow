@@ -176,6 +176,7 @@ def run() -> int:
             assert_booking_conflict(page, "Маяк", f"CI conflict {token}", test_day, test_hour)
             steps.append("Employee receives a conflict message when trying to double-book the same room and time")
             print("PASS 12: booking conflict prevented")
+            open_ok(page, "/my-bookings/")
 
             booking_row = page.locator("tr", has_text=booking_title)
             booking_row.get_by_role("link", name="Изменить").click()
