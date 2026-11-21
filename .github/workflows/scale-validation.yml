@@ -103,7 +103,6 @@ jobs:
             -e READ_RPS=79 \
             -e BOOKING_CYCLES_RPS=7 \
             -e DURATION=5m \
-            -e DURATION=3m \
             -v "$PWD/scripts/loadtest-mixed-100-rps.js:/scripts/loadtest-mixed-100-rps.js:ro" \
             -v "$RUNNER_TEMP/officeflow-scale-results:/results" \
             grafana/k6:0.52.0 run \
@@ -132,9 +131,6 @@ jobs:
 
           kill "$stats_pid" 2>/dev/null || true
           wait "$stats_pid" 2>/dev/null || true
-          printf 'capacity_exit_code=%s\nwrite_edit_exit_code=%s\nmixed_100_rps_exit_code=%s\n' \
-            "$capacity_status" "$write_status" "$mixed_status" \
-            > "$RUNNER_TEMP/officeflow-scale-results/exit-codes.txt"
 
           set -e
           if [[ "$capacity_status" -ne 0 || "$write_status" -ne 0 || "$mixed_status" -ne 0 || "$read_200_status" -ne 0 ]]; then
