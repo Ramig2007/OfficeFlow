@@ -188,7 +188,7 @@ jobs:
             if aws s3api get-bucket-lifecycle-configuration --bucket "$YC_BUCKET" --endpoint-url "$endpoint" --output json > /work/current.json 2>/work/lifecycle-error.txt; then
               :
             elif grep -q "NoSuchLifecycleConfiguration" /work/lifecycle-error.txt; then
-              printf '%s\\n' '{"Rules":[]}' > /work/current.json
+              printf '%s\n' '{"Rules":[]}' > /work/current.json
             else
               cat /work/lifecycle-error.txt
               exit 1
