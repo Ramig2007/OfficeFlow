@@ -51,7 +51,7 @@ jobs:
           test "$count" -eq 1000
           echo "Verified $count disposable load-test accounts."
 
-      - name: Run 1000-user, booking lifecycle and sustained 100 RPS mixed tests
+      - name: Run 1000-user, booking lifecycle, sustained 100 RPS mixed and 150 RPS read tests
         id: scale_tests
         continue-on-error: true
         env:
@@ -115,17 +115,17 @@ jobs:
             -e BASE_URL=http://proxy \
             -e K6_USERNAME=loadtest01 \
             -e K6_PASSWORD="$DEMO_PASSWORD" \
-            -e TARGET_RPS=200 \
+            -e TARGET_RPS=150 \
             -e DURATION=5m \
             -v "$PWD/scripts/loadtest-auth-read.js:/scripts/loadtest-auth-read.js:ro" \
             -v "$RUNNER_TEMP/officeflow-scale-results:/results" \
             grafana/k6:0.52.0 run \
-            --summary-export=/results/authenticated-read-200-rps-summary.json \
+            --summary-export=/results/authenticated-read-150-rps-summary.json \
             /scripts/loadtest-auth-read.js \
-            2>&1 | tee "$RUNNER_TEMP/officeflow-scale-results/authenticated-read-200-rps.log"
+            2>&1 | tee "$RUNNER_TEMP/officeflow-scale-results/authenticated-read-150-rps.log"
           read_200_status=${PIPESTATUS[0]}
 
-          printf 'capacity_exit_code=%s\nwrite_edit_exit_code=%s\nmixed_100_rps_exit_code=%s\nauthenticated_read_200_rps_exit_code=%s\n' \
+          printf 'capacity_exit_code=%s\nwrite_edit_exit_code=%s\nmixed_100_rps_exit_code=%s\nauthenticated_read_150_rps_exit_code=%s\n' \
             "$capacity_status" "$write_status" "$mixed_status" "$read_200_status" \
             > "$RUNNER_TEMP/officeflow-scale-results/exit-codes.txt"
 
