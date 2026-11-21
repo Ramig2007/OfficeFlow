@@ -190,15 +190,15 @@ jobs:
             if aws s3api get-bucket-lifecycle-configuration --bucket "$YC_BUCKET" --endpoint-url "$endpoint" --output json > /work/current.json 2>/work/lifecycle-error.txt; then
               :
             elif grep -q "NoSuchLifecycleConfiguration" /work/lifecycle-error.txt; then
-              printf '%s\n' '{"Rules":[]}' > /work/current.json
+              printf '%s' '{"Rules":[]}' > /work/current.json
             else
               cat /work/lifecycle-error.txt
               exit 1
             fi
             versioning_status="$(aws s3api get-bucket-versioning --bucket "$YC_BUCKET" --endpoint-url "$endpoint" --query Status --output text)"
             case "$versioning_status" in
-              Enabled|Suspended) printf '{"Status":"%s"}\\n' "$versioning_status" > /work/versioning.json ;;
-              *) printf '%s\\n' '{}' > /work/versioning.json ;;
+              Enabled|Suspended) printf '{"Status":"%s"}' "$versioning_status" > /work/versioning.json ;;
+              *) printf '%s' '{}' > /work/versioning.json ;;
             esac
           '
 
