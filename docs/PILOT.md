@@ -72,7 +72,7 @@
 - Публичный Render + Neon сервис Live; для независимых email alerts подготовлена настройка UptimeRobot на `/health/ready/`, но аккаунт, monitor и Alert Contact ещё не созданы.
 - Backup: локальный dump и independent restore проверены CI #117.
 - Off-site: в текущей PR-ветке добавлен GitHub Actions workflow ежедневного Neon dump → полный restore в disposable PostgreSQL → Cloudflare R2 upload/download + SHA-256. Bucket, GitHub secrets/variables и первый успешный run ещё не настроены.
-- SLA 99,9%: 30-дневное внешнее измерение ещё не начато; после включения UptimeRobot нужно сохранить дату старта и дождаться полного свежего окна.
+- SLA 99,9% не подтверждён. Для учебной практики запланировано внешнее наблюдение UptimeRobot в течение 24–48 часов; в отчёт вносится только фактически накопленный период, число проверок, uptime и инциденты.
 
 ## 6. Расширенный чек-лист опытной эксплуатации
 
