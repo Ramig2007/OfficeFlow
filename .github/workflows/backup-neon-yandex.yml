@@ -213,7 +213,7 @@ jobs:
 
           {
             echo "## Yandex Object Storage lifecycle verified"
-            echo "- Rule: `officeflow-backups-retention-30-days`"
+            echo '- Rule: officeflow-backups-retention-30-days'
             echo "- Scope: `$prefix`"
             echo "- Current objects: expire after 30 days."
             echo "- Noncurrent versions: expire after 30 days when bucket versioning is enabled or suspended."
