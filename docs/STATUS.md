@@ -1,6 +1,6 @@
 # Сводка фактической готовности OfficeFlow — 21.11.2026
 
-**Актуальное состояние:** PR #20 с эксплуатационными проверками объединён; PR #33–#35 исправили TLS и подключение Neon. Публичный Render + Neon сервис https://officeflow-x6ay.onrender.com/ подтверждён пользователем как **Live**; вход выполнен, переговорные созданы. PR #20 CI run #44843044175 прошёл Quality, Docker и Scale Validation. В ветке `ops/docs-external-monitoring-backup` добавлены документация внешней эксплуатации и workflow ежедневного Neon backup в Cloudflare R2; bucket и secrets пока требуют настройки владельцем.
+**Актуальное состояние:** PR #20 и PR #33–#36 объединены в `main`; PR #36 добавил внешний operations guide и ежедневный Neon → Cloudflare R2 backup workflow. Публичный Render + Neon сервис https://officeflow-x6ay.onrender.com/ подтверждён пользователем как **Live**; вход выполнен, переговорные созданы. Последний main CI run #44856385184 — **Success**. В текущей ветке `scale-validation/final-ops-2026-11-21` готовятся native Telegram receiver и длительные 100/200 RPS CI-профили.
 
 ## Репозиторий, ветка и CI
 
