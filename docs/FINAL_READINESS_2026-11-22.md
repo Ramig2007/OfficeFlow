@@ -17,7 +17,7 @@
 ## Что остаётся открытым
 
 1. **Telegram delivery:** receiver и workflow проверки готовы, но repository secrets `ALERTMANAGER_TELEGRAM_BOT_TOKEN` и `ALERTMANAGER_TELEGRAM_CHAT_ID` не заданы. Первый test workflow безопасно пропустил отправку. Добавить их в GitHub → Settings → Secrets and variables → Actions, затем запустить OfficeFlow Telegram Delivery Check. Bot token не присылать в чат.
-2. **Длительное наблюдение:** получить актуальный скриншот UptimeRobot после полного 24–48-часового окна. Последний сохранённый снимок был только 14 ч 52 мин. Email contact создан, но Test Notification не подтверждён. GitHub Actions cron настроен, но schedule-triggered runs в истории пока не обнаружены.
+2. **Длительное наблюдение:** получить актуальный скриншот UptimeRobot после полного 24–48-часового окна. Последний сохранённый снимок был только 14 ч 52 мин. Email contact создан, но Test Notification не подтверждён. GitHub Actions cron настроен; push-triggered run #44950272193 и первый scheduled run #44954099116 прошли, но длительное 24–48-часовое окно ещё не подтверждено.
 3. **Формальная приёмка:** нужна независимая подпись/рецензия наставника или заказчика.
 4. **Отчёт:** нужны реальные скриншоты публичного сайта; CI screenshots показывают тестовый Docker стенд и не заменяют скриншоты публичного сайта.
 5. **Безопасность и восстановление:** внешний DAST, managed Neon failover, RTO/RPO не подтверждены.

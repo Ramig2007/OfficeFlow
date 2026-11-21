@@ -42,7 +42,7 @@ Render Free засыпает после 15 минут без входящего 
 
 ## 2. Реальный получатель уведомлений Prometheus / Alertmanager — Telegram
 
-Prometheus, Grafana и Alertmanager из `compose.yaml` входят в локальный Docker Compose observability-профиль. Они **не развёрнуты внутри Render Free** и не получают метрики публичного Render-сервиса автоматически. Последний сохранённый пользовательский скриншот UptimeRobot (21.11.2026 18:04:56 UTC): monitor “OfficeFlow Production” — Up, 14 ч 52 мин наблюдения, 99,931% за отображаемые 24 часа, один HTTP 503-инцидент длительностью 37 секунд, response 165 мс. Email contact создан, но Test Notification не подтверждён; текущий статус аккаунта повторно не проверен. GitHub Actions cron настроен, однако при проверке истории обнаружен только push-triggered run #44950272193, без schedule-triggered запусков.
+Prometheus, Grafana и Alertmanager из `compose.yaml` входят в локальный Docker Compose observability-профиль. Они **не развёрнуты внутри Render Free** и не получают метрики публичного Render-сервиса автоматически. Последний сохранённый пользовательский скриншот UptimeRobot (21.11.2026 18:04:56 UTC): monitor “OfficeFlow Production” — Up, 14 ч 52 мин наблюдения, 99,931% за отображаемые 24 часа, один HTTP 503-инцидент длительностью 37 секунд, response 165 мс. Email contact создан, но Test Notification не подтверждён; текущий статус аккаунта повторно не проверен. GitHub Actions cron настроен каждые 5 минут; push-triggered run #44950272193 и первый scheduled run #44954099116 завершились Success. Двух проб недостаточно для 24–48-часового отчёта.
 
 ### Локальный Grafana Dashboard
 

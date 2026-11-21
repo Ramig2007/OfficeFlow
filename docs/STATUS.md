@@ -19,7 +19,7 @@
 | Grafana / Prometheus | Main CI #235: officeflow/postgres/redis targets — UP; пять DB/Redis metrics доступны; Grafana provisioned dashboard загрузился с 9 панелями | Локальный Docker Compose observability profile, не Render Free |
 | Публичный стенд | Render + Neon readiness endpoint отвечает `ready`; ранее пользователь подтвердил вход и создание переговорных | Render Free не является платформой с доказанным SLA |
 | UptimeRobot | HTTP(s) monitor “OfficeFlow Production” на readiness endpoint, интервал 5 минут. Последний сохранённый снимок 21.11.2026 18:04:56 UTC: Up, возраст 14 ч 52 мин, 99,931% за отображаемые 24 часа, один инцидент 37 секунд | Исторический снимок, не текущий live-статус; актуальное 24–48-часовое окно нужно подтвердить новым снимком. Email contact есть, Test Notification не подтверждён |
-| GitHub Actions uptime probe | Workflow настроен на cron каждые 5 минут; push-triggered run #44950272193 прошёл HTTP 200 / ready | В истории Actions при последней проверке не найдено schedule-triggered запусков; не считать cron доказанным непрерывным мониторингом |
+| GitHub Actions uptime probe | Cron каждые 5 минут; push-triggered run #44950272193 и первый scheduled run #44954099116 — Success | Подтверждены отдельные пробы, но не непрерывное 24–48-часовое окно; расписание может задерживаться, считать реальные timestamps |
 | Telegram alerts | Native Alertmanager Telegram receiver и одноразовый workflow готовы | Secrets `ALERTMANAGER_TELEGRAM_BOT_TOKEN` и `ALERTMANAGER_TELEGRAM_CHAT_ID` не заданы; фактическое сообщение не отправлялось |
 | GHCR | Docker image собирается и публикуется в GHCR | Пакет GHCR остаётся Private; публичен исходный код |
 
