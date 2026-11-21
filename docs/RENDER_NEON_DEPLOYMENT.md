@@ -30,9 +30,11 @@
    - **role / user** → `NEON_USER` (часто `neondb_owner`);
    - **password** → `NEON_PASSWORD`.
 5. Пароль PostgreSQL должен удовлетворять требованиям OfficeFlow: не менее **24 символов**, не быть шаблонным. Если выданное Neon значение короче, создайте или обновите надёжный пароль в Neon и используйте только его в Render.
-6. Подключение будет происходить с `sslmode=verify-full` и `sslrootcert=system`: проверяются TLS-сертификат и соответствие имени сервера. Не отключайте проверку сертификата.
+6. Подключение будет происходить с `sslmode=verify-full` и `sslrootcert=/etc/ssl/certs/ca-certificates.crt`: проверяются TLS-сертификат и соответствие имени сервера. Не отключайте проверку сертификата.
 
 Важно: в OfficeFlow есть миграция `0002_postgres_overlap_guard`, создающая расширение `btree_gist` и PostgreSQL exclusion constraint для защиты от двойного бронирования. Используйте роль Neon, имеющую право на миграции и создание расширения. Проверьте в Render Logs, что миграция завершилась успешно.
+
+**Диагностика TLS (Render):** если при `manage.py migrate` было `SSL error: certificate verify failed`, исправление использует явный системный CA-bundle Debian (`/etc/ssl/certs/ca-certificates.crt`), установленный через `ca-certificates` в `Dockerfile.render`. Проверка сертификата и hostname в режиме `verify-full` **сохраняется**. IPv6 `Network is unreachable` может появляться вместе с ошибками IPv4 и не является доказательством отсутствия соединения по IPv4. Успешный CI не проверяет настоящий TLS к Neon: подтвердите миграции на Render и `/health/ready/`. Не подменяйте сертификаты и не меняйте `sslmode` на `disable`/`require` для обхода проверки.
 
 **Никогда не присылайте в чат пароль или полный URL Neon с паролем.**
 

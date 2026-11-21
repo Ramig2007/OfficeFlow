@@ -67,7 +67,7 @@ assert settings.SECURE_HSTS_SECONDS == 31536000
 assert db["ENGINE"] == "django.db.backends.postgresql"
 assert db["HOST"] == "ep-test.eu-central-1.aws.neon.tech"
 assert db["OPTIONS"]["sslmode"] == "verify-full"
-assert db["OPTIONS"]["sslrootcert"] == "system"
+assert db["OPTIONS"]["sslrootcert"] == "/etc/ssl/certs/ca-certificates.crt"
 assert db["CONN_MAX_AGE"] == 0
 assert settings.SESSION_ENGINE == "django.contrib.sessions.backends.db"
 assert settings.OFFICEFLOW_EXPOSE_METRICS is False
