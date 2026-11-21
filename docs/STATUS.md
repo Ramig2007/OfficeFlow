@@ -39,8 +39,8 @@
 
 1. Выполнить полный внешний smoke публичного сайта: readiness, CSS, вход, каталог, расписание, бронирование, конфликт, VIP, права и CSV. Пользователь уже подтвердил Live, вход и создание комнат, но полный внешний протокол ещё не оформлен.
 2. Создать приватный Cloudflare R2 bucket, добавить GitHub Actions secrets/variables и вручную запустить `OfficeFlow Neon Off-site Backup`; подтвердить `RESTORE_TEST_OK` и `OFFSITE_BACKUP_OK`.
-3. Создать UptimeRobot monitor на `https://officeflow-x6ay.onrender.com/health/ready/`, подтвердить email Alert Contact и сохранить дату начала 30-дневного измерения.
-4. Выбрать реальный HTTPS webhook для локального Alertmanager, добавить URL/token в локальный секретный `.env` и проверить фактическую доставку test alert.
+3. Создать UptimeRobot monitor на `https://officeflow-x6ay.onrender.com/health/ready/`, подтвердить email Alert Contact и собрать 24–48 часов внешних наблюдений до сдачи практики.
+4. Создать Telegram bot, добавить token/chat ID в локальный секретный `.env`, запустить Alertmanager и подтвердить доставку контрольного сообщения.
 5. Уточнить внешний DAST/UX и получить независимую приёмку, если этого требует преподаватель.
 6. Сделать реальные скриншоты публичного сайта и вставить их в итоговый Word-отчёт.
 7. При необходимости открыть GHCR package для pull без авторизации; публичные исходники и CI build уже доступны.
