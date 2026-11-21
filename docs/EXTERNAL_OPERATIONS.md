@@ -44,6 +44,25 @@ Render Free засыпает после 15 минут без входящего 
 
 Prometheus, Grafana и Alertmanager из `compose.yaml` входят в локальный Docker Compose observability-профиль. Они **не развёрнуты внутри Render Free** и не получают метрики публичного Render-сервиса автоматически. В заметках предыдущей сессии указан пользовательский скриншот UptimeRobot со статусом Up и 14 ч 52 мин наблюдения; текущий статус аккаунта повторно не проверен. GitHub Actions probe теперь также проверяет публичный Render URL.
 
+### Локальный Grafana Dashboard
+
+Grafana, Prometheus, Alertmanager и exporters запускаются только в локальном Docker Compose observability-профиле. Они не размещены на Render Free и не собирают метрики публичного Render автоматически.
+
+1. Убедитесь, что локальный .env содержит GRAFANA_USER и сильный GRAFANA_PASSWORD. В ALLOWED_HOSTS должны быть localhost, 127.0.0.1, app и proxy, чтобы Prometheus мог опрашивать внутренний Django endpoint.
+2. Из корня проекта выполните:
+
+```powershell
+docker compose --profile observability up -d
+docker compose ps
+```
+
+3. Откройте http://localhost:3000. Войдите с GRAFANA_USER (по умолчанию admin) и паролем из .env.
+4. Откройте dashboard OfficeFlow · Reliability. В нём 9 панелей: HTTP RPS, p95 latency, 5xx, инфраструктурная доступность, PostgreSQL connections/transactions, Redis memory/clients/commands.
+5. Проверяйте Prometheus targets на http://localhost:9090/targets. Ожидаемые jobs: officeflow, postgres и redis.
+
+CI run #230 подтвердил, что три scrape targets доступны, пять DB/Redis метрик возвращаются, а Grafana provisioned dashboard загружен. На Render production /metrics намеренно не публикуется; этот dashboard относится к локальному/собственному Docker-стенду.
+
+
 В репозитории настроен генератор `scripts/render_alertmanager_config.py`: он поддерживает native Telegram receiver и дополнительный HTTPS webhook. Без настроек сохраняется безопасный `null-receiver`; CI проверяет корректность Telegram-конфигурации через `amtool check-config`.
 
 ### 2.1 Создать Telegram-бота и получить chat ID
@@ -81,17 +100,6 @@ docker compose logs --tail=50 alertmanager-config alertmanager
 
 
 
-### 2.4 Одноразовая проверка Telegram из GitHub Actions
-
-Для проверки bot token и chat ID без передачи секретов в чат можно использовать workflow .github/workflows/telegram-delivery-check.yml:
-
-1. Откройте GitHub → Settings репозитория → Secrets and variables → Actions.
-2. Добавьте repository secrets с точными именами ALERTMANAGER_TELEGRAM_BOT_TOKEN и ALERTMANAGER_TELEGRAM_CHAT_ID.
-3. Откройте Actions → OfficeFlow Telegram Delivery Check и запустите workflow вручную.
-4. При наличии обоих секретов workflow отправит одноразовое сообщение в указанный chat и проверит ответ Telegram Bot API. Если секреты отсутствуют, workflow безопасно пропустит отправку.
-
-Первый запуск #44951325097 был пропущен, поскольку оба секрета не настроены. Не присылайте bot token в ChatGPT и не коммитьте его в репозиторий. Одноразовый тест подтверждает доступность Telegram Bot API и chat ID, но не подменяет локальный end-to-end тест Alertmanager и не подключает Prometheus к публичному Render.
-
 ### 2.3 Отправить контрольное уведомление
 
 Когда Alertmanager запущен, выполните в PowerShell:
@@ -118,6 +126,17 @@ Invoke-RestMethod -Uri "http://localhost:9093/api/v2/alerts" -Method Post -Conte
 Закрытым считается только фактический результат: сообщение `OfficeFlow: тестовое уведомление` пришло в указанный Telegram chat. При отсутствии сообщения проверьте `docker compose logs --tail=100 alertmanager` и правильность bot token/chat ID.
 
 Этот тест подтверждает доставку тестового события из локального Alertmanager. Он **не означает**, что Alertmanager автоматически собирает метрики публичного Render: для этого нужен постоянно работающий внешний Prometheus с доступным источником метрик. Внешние уведомления о доступности самого Render обеспечиваются отдельным UptimeRobot monitor.
+
+### Одноразовая проверка Telegram из GitHub Actions
+
+Для проверки bot token и chat ID без передачи секретов в чат можно использовать workflow .github/workflows/telegram-delivery-check.yml:
+
+1. Откройте GitHub → Settings репозитория → Secrets and variables → Actions.
+2. Добавьте repository secrets с точными именами ALERTMANAGER_TELEGRAM_BOT_TOKEN и ALERTMANAGER_TELEGRAM_CHAT_ID.
+3. Откройте Actions → OfficeFlow Telegram Delivery Check и запустите workflow вручную.
+4. При наличии обоих секретов workflow отправит одноразовое сообщение в указанный chat и проверит ответ Telegram Bot API. Если секреты отсутствуют, workflow безопасно пропустит отправку.
+
+Первый запуск #44951325097 был пропущен, поскольку оба секрета не настроены. Не присылайте bot token в ChatGPT и не коммитьте его в репозиторий. Одноразовый тест подтверждает доступность Telegram Bot API и chat ID, но не подменяет локальный end-to-end тест Alertmanager и не подключает Prometheus к публичному Render.
 
 ## 3. Ежедневный Neon backup в Yandex Object Storage
 
