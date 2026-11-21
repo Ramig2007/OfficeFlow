@@ -64,7 +64,7 @@
 | 4.3 | Нельзя обойти согласование | статус выбирается сервером, тесты проверяют VIP pending и запрет self-approval | Реализовано и покрыто тестами |
 | 4.4 | CSV экспорт и фильтры | `queries.export_csv`, date/room | код |
 | 4.5 | Impact analysis | `CHANGE_ANALYSIS.md` | документация |
-| 4.6 | Регрессионное тестирование | `test_booking_service.py`, `test_http_api.py`, тесты uptime, CI pytest | PR CI #106: 68 passed, два критических модуля — 91,67% |
+| 4.6 | Регрессионное тестирование | `test_booking_service.py`, `test_http_api.py`, pytest CI | PR #20 CI run #44843044175: 92 passed; два критических модуля — 91,67% coverage |
 
 ## 5. Критерии надёжности
 
